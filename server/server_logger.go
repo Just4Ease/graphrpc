@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
-	nSrv "graphrpc/libs/nats-server/server"
-	"graphrpc/logger"
+	nSrv "github.com/Just4Ease/graphrpc/libs/nats-server/server"
+	"github.com/Just4Ease/graphrpc/logger"
 	"os"
 )
 

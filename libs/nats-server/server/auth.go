@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Just4Ease/graphrpc/libs/nats-server/internal/ldap"
 	"github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nkeys"
 	"golang.org/x/crypto/bcrypt"
-	"graphrpc/libs/nats-server/internal/ldap"
 )
 
 // Authentication is an interface for implementing authentication
