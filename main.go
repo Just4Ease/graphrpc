@@ -1,7 +1,7 @@
 package main
 
 import (
-	"graphrpc/server"
+	"github.com/Just4Ease/graphrpc/server"
 	"net/http"
 )
 

@@ -1,11 +1,10 @@
-module graphrpc
+module github.com/Just4Ease/graphrpc
 
 go 1.15
 
 require (
 	github.com/99designs/gqlgen v0.13.0
 	github.com/gabriel-vasile/mimetype v1.3.1
-	github.com/go-chi/chi v3.3.2+incompatible
 	github.com/klauspost/compress v1.11.12
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/minio/highwayhash v1.0.1
