@@ -1,4 +1,4 @@
-package main
+package graphrpc
 
 import (
 	"github.com/Just4Ease/graphrpc/server"
