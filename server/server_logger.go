@@ -2,14 +2,14 @@ package server
 
 import (
 	"fmt"
-	nSrv "graphrpc/libs/nats-server/server"
-	"graphrpc/logger"
+	"github.com/Just4Ease/graphrpc/logger"
+	natsServer "github.com/nats-io/nats-server/v2/server"
 	"os"
 )
 
-func bindServerLogger(natsServer *nSrv.Server, opts *nSrv.Options) {
+func bindServerLogger(natsServer *natsServer.Server, opts *natsServer.Options) {
 	var (
-		slog nSrv.Logger
+		slog natsServer.Logger
 	)
 
 	if opts.NoLog {
@@ -27,7 +27,7 @@ func bindServerLogger(natsServer *nSrv.Server, opts *nSrv.Options) {
 		slog = logger.NewFileLogger(opts.LogFile, opts.Logtime, opts.Debug, opts.Trace, true)
 		if opts.LogSizeLimit > 0 {
 			if l, ok := slog.(*logger.Logger); ok {
-				l.SetSizeLimit(opts.LogSizeLimit)
+				_ = l.SetSizeLimit(opts.LogSizeLimit)
 			}
 		}
 	} else if opts.RemoteSyslog != "" {
@@ -45,6 +45,21 @@ func bindServerLogger(natsServer *nSrv.Server, opts *nSrv.Options) {
 		slog = logger.NewStdLogger(opts.Logtime, opts.Debug, opts.Trace, colors, true)
 	}
 
+	tx := `
+         _              _           _                   _          _       _            _           _           _       
+        /\ \           /\ \        / /\                /\ \       / /\    / /\         /\ \        /\ \       /\ \      
+       /  \ \         /  \ \      / /  \              /  \ \     / / /   / / /        /  \ \      /  \ \     /  \ \     
+      / /\ \_\       / /\ \ \    / / /\ \            / /\ \ \   / /_/   / / /        / /\ \ \    / /\ \ \   / /\ \ \    
+     / / /\/_/      / / /\ \_\  / / /\ \ \          / / /\ \_\ / /\ \__/ / /        / / /\ \_\  / / /\ \_\ / / /\ \ \   
+    / / / ______   / / /_/ / / / / /  \ \ \        / / /_/ / // /\ \___\/ /        / / /_/ / / / / /_/ / // / /  \ \_\  
+   / / / /\_____\ / / /__\/ / / / /___/ /\ \      / / /__\/ // / /\/___/ /        / / /__\/ / / / /__\/ // / /    \/_/  
+  / / /  \/____ // / /_____/ / / /_____/ /\ \    / / /_____// / /   / / /        / / /_____/ / / /_____// / /           
+ / / /_____/ / // / /\ \ \  / /_________/\ \ \  / / /      / / /   / / /        / / /\ \ \  / / /      / / /________    
+/ / /______\/ // / /  \ \ \/ / /_       __\ \_\/ / /      / / /   / / /        / / /  \ \ \/ / /      / / /_________\   
+\/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/   
+                                                                                                                        
+`
+	slog.Noticef("%s", tx)
 	natsServer.SetLoggerV2(slog, opts.Debug, opts.Trace, opts.TraceVerbose)
 }
 

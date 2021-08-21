@@ -17,7 +17,7 @@ package logger
 
 import (
 	"fmt"
-	nSrv "github.com/nats-io/nats-server/v2/server"
+	natsServer "github.com/nats-io/nats-server/v2/server"
 	"log"
 	"log/syslog"
 	"net/url"
@@ -52,7 +52,7 @@ func GetSysLoggerTag() string {
 }
 
 // NewSysLogger creates a new system logger
-func NewSysLogger(debug, trace bool) nSrv.Logger {
+func NewSysLogger(debug, trace bool) natsServer.Logger {
 	w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_NOTICE, GetSysLoggerTag())
 	if err != nil {
 		log.Fatalf("error connecting to syslog: %q", err.Error())
