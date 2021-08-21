@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func NewServer(address string, handler http.Handler, option *server.Options) *server.Server {
+func NewServer(address string, handler http.Handler, option server.Options) *server.Server {
 	return server.NewServer(address, handler, option)
 }
 

@@ -16,7 +16,7 @@ package logger
 
 import (
 	"fmt"
-	nSrv "github.com/nats-io/nats-server/v2/server"
+	natsServer "github.com/nats-io/nats-server/v2/server"
 	"log"
 	"os"
 	"sync"
@@ -40,7 +40,7 @@ type Logger struct {
 }
 
 // NewStdLogger creates a logger with output directed to Stderr
-func NewStdLogger(time, debug, trace, colors, pid bool) nSrv.Logger {
+func NewStdLogger(time, debug, trace, colors, pid bool) natsServer.Logger {
 	flags := 0
 	if time {
 		flags = log.LstdFlags | log.Lmicroseconds
@@ -166,7 +166,7 @@ func (l *fileLogger) logDirect(label, format string, v ...interface{}) int {
 	entry = append(entry, label...)
 	entry = append(entry, fmt.Sprintf(format, v...)...)
 	entry = append(entry, '\r', '\n')
-	l.f.Write(entry)
+	_, _ = l.f.Write(entry)
 	return len(entry)
 }
 
@@ -194,7 +194,7 @@ func (l *fileLogger) Write(b []byte) (int, error) {
 			bak := fmt.Sprintf("%s.%04d.%02d.%02d.%02d.%02d.%02d.%09d", fname,
 				now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(),
 				now.Second(), now.Nanosecond())
-			os.Rename(fname, bak)
+			_  = os.Rename(fname, bak)
 			fileflags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
 			f, err := os.OpenFile(fname, fileflags, 0660)
 			if err != nil {

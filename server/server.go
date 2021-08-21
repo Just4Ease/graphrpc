@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	nSrv "github.com/Just4Ease/graphrpc/libs/nats-server/server"
 	"github.com/gabriel-vasile/mimetype"
+	natsServer "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"io/ioutil"
 	goLog "log"
@@ -32,22 +32,41 @@ import (
 )
 
 type Options struct {
-	serverName              string        // default: GraphRPC
-	natsServerOption        *nSrv.Options // server nats-server options
-	natsServerClientOptions []nats.Option // server nats-client options
-	graphEntrypoint         string        // graph entrypoint
+	serverName              string              // default: GraphRPC
+	natsServerOption        *natsServer.Options // server nats-server options
+	natsServerClientOptions []nats.Option       // server nats-client options
+	graphEntrypoint         string              // graph entrypoint
+	preRunHook              preRunHook
+	// postRunHook runs after the nats server connection
+	postRunHook postRunHook
 }
 
-func NewServerOptions() *Options {
+type preRunHook func() error
+type postRunHook func(natsServer *natsServer.Server, natsClientConn *nats.Conn, jetStreamClient nats.JetStreamContext) error
+
+func NewServerOptions(serverName string, graphEntryPoint string) *Options {
+	if strings.TrimSpace(serverName) == empty {
+		goLog.Fatal("Server name is required!")
+	}
+
+	if strings.TrimSpace(graphEntryPoint) == empty {
+		goLog.Fatal("API/GraphQL entrypoint is required!")
+	}
+
+	// Detect 1st in api/graph entrypoint and strip it
+	if graphEntryPoint[:1] == "/" {
+		graphEntryPoint = graphEntryPoint[1:]
+	}
+
 	return &Options{
-		serverName:              "GraphRPC",
-		graphEntrypoint:         "graph", // forward slash graph
+		serverName:              serverName,
+		graphEntrypoint:         graphEntryPoint, // forward slash graph
 		natsServerOption:        nil,
 		natsServerClientOptions: make([]nats.Option, 0),
 	}
 }
 
-func (o *Options) SetNatsServerOpts(opts *nSrv.Options) {
+func (o *Options) SetNatsServerOpts(opts *natsServer.Options) {
 	args := os.Args[1:]
 	args = append(args, "-n", "GraphRPC")
 	// Create a FlagSet and sets the usage
@@ -55,7 +74,7 @@ func (o *Options) SetNatsServerOpts(opts *nSrv.Options) {
 	fs.Usage = usage
 
 	// Configure the options from the flags/config file
-	argsOrConfigOptions, err := nSrv.ConfigureOptions(fs, args, PrintServerAndExit, fs.Usage, nSrv.PrintTLSHelpAndDie)
+	argsOrConfigOptions, err := natsServer.ConfigureOptions(fs, args, PrintServerAndExit, fs.Usage, natsServer.PrintTLSHelpAndDie)
 	if err != nil {
 		PrintAndDie(fmt.Sprintf("%s: %s", exe, err))
 	} else if argsOrConfigOptions.CheckConfig {
@@ -94,9 +113,19 @@ func (o *Options) SetGraphEntrypointOption(entrypoint string) {
 	o.graphEntrypoint = entrypoint
 }
 
+// SetPreRunHook is
+func (o *Options) SetPreRunHook(f preRunHook) {
+	o.preRunHook = f
+}
+
+// SetPostRunHook is
+func (o *Options) SetPostRunHook(f postRunHook) {
+	o.postRunHook = f
+}
+
 type Server struct {
 	mu                       *sync.Mutex
-	natsServer               *nSrv.Server          // server nats-server
+	natsServer               *natsServer.Server    // server nats-server
 	snc                      *nats.Conn            // server nats-client
 	sjs                      nats.JetStreamContext // server nats-jetstream-client
 	opts                     *Options              // graph & nats options
@@ -109,29 +138,31 @@ type Server struct {
 
 var exe = "graphrpc-server"
 
-func NewServer(address string, handler http.Handler, option *Options) *Server {
-	if option == nil {
-		goLog.Print("GraphRPC options not provided, using defaults...")
-		option = NewServerOptions()
-		option.SetNatsServerOpts(nil)
-	}
+func NewServer(address string, handler http.Handler, option Options) *Server {
 
 	if option.natsServerOption == nil {
-		goLog.Print("nats server configuration not provided, using defaults...")
+		goLog.Println("nats-server configuration not provided, using defaults...")
 		option.SetNatsServerOpts(nil)
 	}
 
 	option.natsServerClientOptions = append(option.natsServerClientOptions, nats.Name(option.serverName))
+
 	return &Server{
-		mu:               &sync.Mutex{},
-		address:          address,
-		opts:             option,
-		graphHTTPHandler: handler,
-		graphEntrypoint:  option.graphEntrypoint,
+		mu:                       &sync.Mutex{},
+		address:                  address,
+		opts:                     &option,
+		graphHTTPHandler:         handler,
+		graphEntrypoint:          option.graphEntrypoint,
+		graphListenerCloseSignal: make(chan bool),
 	}
 }
 
 func (s *Server) Serve() error {
+
+	if err := s.opts.preRunHook(); err != nil {
+		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
+		return err
+	}
 
 	ls, err := net.Listen("tcp", s.address)
 	if err != nil {
@@ -143,38 +174,34 @@ func (s *Server) Serve() error {
 
 	address := s.natsServer.Addr()
 	if s.snc, err = nats.Connect(address.String(), s.opts.natsServerClientOptions...); err != nil {
-		PrintAndDie(err.Error())
+		//PrintAndDie(err.Error())
 		return err
 	}
 
 	if s.sjs, err = s.snc.JetStream(); err != nil {
-		PrintAndDie(err.Error())
+		//PrintAndDie(err.Error())
 		return err
 	}
 
-	// graphs...
-	go func() {
-		root := fmt.Sprintf("%s.%s", s.opts.serverName, s.graphEntrypoint)
-		// TODO: Check tls here and switch base to https.
-		// TODO: Use axon format.
-		endpoint := fmt.Sprintf("http://%s/%s", s.address, s.graphEntrypoint)
-		_, err := s.snc.QueueSubscribe(root, s.opts.serverName, func(msg *nats.Msg) {
-			PrettyJson(string(msg.Data))
-			r, err := http.Post(endpoint, mimetype.Detect(msg.Data).String(), bytes.NewReader(msg.Data))
-			if err != nil {
-				fmt.Print(err)
-				_ = msg.Respond([]byte("not available at this time"))
-				return
-			}
+	go s.mountGraphSubscriber()
 
-			b, _ := ioutil.ReadAll(r.Body)
-			_ = msg.Respond(b)
-		})
-		if err != nil {
-			goLog.Fatal(err)
+	if s.opts.natsServerOption.TLS {
+		if err := http.ServeTLS(
+			s.graphListener,
+			s.graphHTTPHandler,
+			s.opts.natsServerOption.TLSCaCert,
+			s.opts.natsServerOption.TLSKey,
+		); err != nil {
+			return err
 		}
-		<-make(chan bool)
-	}()
+
+		return nil
+	}
+
+	if err := s.opts.postRunHook(s.natsServer, s.snc, s.sjs); err != nil {
+		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
+		return err
+	}
 
 	if err := http.Serve(s.graphListener, s.graphHTTPHandler); err != nil {
 		return err
@@ -183,15 +210,41 @@ func (s *Server) Serve() error {
 	return nil
 }
 
+func (s *Server) mountGraphSubscriber() {
+	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.graphEntrypoint)
+	// TODO: Use axon format.
+
+	protocol := "https://"
+	if !s.opts.natsServerOption.TLS {
+		protocol = strings.ReplaceAll(protocol, "s", "")
+	}
+
+	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.graphEntrypoint)
+	_, err := s.snc.QueueSubscribe(root, s.opts.serverName, func(msg *nats.Msg) {
+		r, err := http.Post(endpoint, mimetype.Detect(msg.Data).String(), bytes.NewReader(msg.Data))
+		if err != nil {
+			_ = msg.Respond([]byte("not available at this time"))
+			return
+		}
+
+		b, _ := ioutil.ReadAll(r.Body)
+		_ = msg.Respond(b)
+	})
+	if err != nil {
+		goLog.Fatal(err)
+	}
+	<-make(chan bool)
+}
+
 func (s *Server) WaitForShutdown() {
 	s.natsServer.WaitForShutdown()
 	// close http server
 	_ = s.graphListener.Close()
 }
 
-func connServer(opts *nSrv.Options) *nSrv.Server {
+func connServer(opts *natsServer.Options) *natsServer.Server {
 	// Create the server with appropriate options.
-	s, err := nSrv.NewServer(opts)
+	s, err := natsServer.NewServer(opts)
 	if err != nil {
 		PrintAndDie(fmt.Sprintf("%s: %s", exe, err))
 	}
@@ -203,7 +256,7 @@ func connServer(opts *nSrv.Options) *nSrv.Server {
 	//s.ConfigureLogger()
 
 	// Start things up. Block here until done.
-	if err := nSrv.Run(s); err != nil {
+	if err := natsServer.Run(s); err != nil {
 		PrintAndDie(err.Error())
 	}
 
