@@ -194,7 +194,7 @@ func (l *fileLogger) Write(b []byte) (int, error) {
 			bak := fmt.Sprintf("%s.%04d.%02d.%02d.%02d.%02d.%02d.%09d", fname,
 				now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(),
 				now.Second(), now.Nanosecond())
-			_  = os.Rename(fname, bak)
+			_ = os.Rename(fname, bak)
 			fileflags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
 			f, err := os.OpenFile(fname, fileflags, 0660)
 			if err != nil {
