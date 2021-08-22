@@ -40,7 +40,7 @@ type Options struct {
 	natsServerOption        *natsServer.Options // server nats-server options
 	natsServerClientOptions []nats.Option       // server nats-client options
 	graphEntrypoint         string              // graph entrypoint
-	disablePlayground       bool                // disable playground
+	enablePlayground        bool                // disable playground
 	preRunHook              preRunHook
 	postRunHook             postRunHook
 	middlewares             []func(http.Handler) http.Handler
@@ -68,7 +68,7 @@ func NewServerOptions(serverName string, graphEntryPoint string) *Options {
 		graphEntrypoint:         graphEntryPoint, // forward slash graph
 		natsServerOption:        nil,
 		natsServerClientOptions: make([]nats.Option, 0),
-		disablePlayground:       false,
+		enablePlayground:        true,
 		preRunHook:              nil,
 		postRunHook:             nil,
 		middlewares:             nil,
@@ -145,7 +145,6 @@ type Server struct {
 	graphHTTPHandler         http.Handler          // graphql/rest handler
 	graphListener            net.Listener          // graphql listener
 	graphListenerCloseSignal chan bool             // graphql listener close signal
-	graphEntrypoint          string                // graphql entrypoint
 	address                  string
 }
 
@@ -165,7 +164,6 @@ func NewServer(address string, handler http.Handler, option Options) *Server {
 		address:                  address,
 		opts:                     &option,
 		graphHTTPHandler:         handler,
-		graphEntrypoint:          option.graphEntrypoint,
 		graphListenerCloseSignal: make(chan bool),
 	}
 }
@@ -207,7 +205,7 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) mountGraphSubscriber() {
-	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.graphEntrypoint)
+	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint)
 	// TODO: Use axon format.
 
 	protocol := "https://"
@@ -215,7 +213,7 @@ func (s *Server) mountGraphSubscriber() {
 		protocol = strings.ReplaceAll(protocol, "s", "")
 	}
 
-	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.graphEntrypoint)
+	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.opts.graphEntrypoint)
 	_, err := s.snc.QueueSubscribe(root, s.opts.serverName, func(msg *nats.Msg) {
 		r, err := http.Post(endpoint, mimetype.Detect(msg.Data).String(), bytes.NewReader(msg.Data))
 		if err != nil {
@@ -241,24 +239,26 @@ func (s *Server) mountGraphHTTPServer() error {
 		router.Use(s.opts.middlewares...)
 	}
 
-	if !s.opts.disablePlayground {
+	if !s.opts.enablePlayground {
 		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set("content-type", "text/html")
-			_, _ = fmt.Fprintf(writer, "<a>%s is running... Please contact administrator for more details</a>", s.opts.serverName)
+			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.opts.serverName)
 		})
 	}
 
 	graphEndpoint := fmt.Sprintf("/%s", s.opts.graphEntrypoint)
-	if s.opts.disablePlayground {
+	if s.opts.enablePlayground {
 		router.Handle("/", playground.Handler("GraphQL playground", graphEndpoint))
 	}
 
 	router.Handle(graphEndpoint, s.graphHTTPHandler)
 
 	if !s.opts.natsServerOption.TLS {
+		goLog.Printf("Connect to http://%s/ for GraphQL playground", s.address)
 		return http.Serve(s.graphListener, router)
 	}
 
+	goLog.Printf("Connect to https://%s/ for GraphQL playground", s.address)
 	return http.ServeTLS(s.graphListener, router, s.opts.natsServerOption.TLSCaCert, s.opts.natsServerOption.TLSKey)
 }
 
