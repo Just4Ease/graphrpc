@@ -177,6 +177,21 @@ func (s *Server) Serve() error {
 		}
 	}
 
+	tx := `
+         _              _           _                   _          _       _            _           _           _      
+        /\ \           /\ \        / /\                /\ \       / /\    / /\         /\ \        /\ \       /\ \     
+       /  \ \         /  \ \      / /  \              /  \ \     / / /   / / /        /  \ \      /  \ \     /  \ \    
+      / /\ \_\       / /\ \ \    / / /\ \            / /\ \ \   / /_/   / / /        / /\ \ \    / /\ \ \   / /\ \ \   
+     / / /\/_/      / / /\ \_\  / / /\ \ \          / / /\ \_\ / /\ \__/ / /        / / /\ \_\  / / /\ \_\ / / /\ \ \  
+    / / / ______   / / /_/ / / / / /  \ \ \        / / /_/ / // /\ \___\/ /        / / /_/ / / / / /_/ / // / /  \ \_\ 
+   / / / /\_____\ / / /__\/ / / / /___/ /\ \      / / /__\/ // / /\/___/ /        / / /__\/ / / / /__\/ // / /    \/_/ 
+  / / /  \/____ // / /_____/ / / /_____/ /\ \    / / /_____// / /   / / /        / / /_____/ / / /_____// / /          
+ / / /_____/ / // / /\ \ \  / /_________/\ \ \  / / /      / / /   / / /        / / /\ \ \  / / /      / / /________   
+/ / /______\/ // / /  \ \ \/ / /_       __\ \_\/ / /      / / /   / / /        / / /  \ \ \/ / /      / / /_________\  
+\/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/  
+
+`
+	s.logger.Noticef("%s", tx)
 	s.natsServer = connServer(s.opts.natsServerOption, s.logger)
 
 	var err error
@@ -185,6 +200,10 @@ func (s *Server) Serve() error {
 	}
 
 	if s.sjs, err = s.snc.JetStream(); err != nil {
+		return err
+	}
+
+	if s.graphListener, err = net.Listen("tcp", s.address); err != nil {
 		return err
 	}
 
@@ -226,22 +245,6 @@ func (s *Server) mountGraphSubscriber() {
 }
 
 func (s *Server) mountGraphHTTPServer() error {
-	tx := `
-         _              _           _                   _          _       _            _           _           _      
-        /\ \           /\ \        / /\                /\ \       / /\    / /\         /\ \        /\ \       /\ \     
-       /  \ \         /  \ \      / /  \              /  \ \     / / /   / / /        /  \ \      /  \ \     /  \ \    
-      / /\ \_\       / /\ \ \    / / /\ \            / /\ \ \   / /_/   / / /        / /\ \ \    / /\ \ \   / /\ \ \   
-     / / /\/_/      / / /\ \_\  / / /\ \ \          / / /\ \_\ / /\ \__/ / /        / / /\ \_\  / / /\ \_\ / / /\ \ \  
-    / / / ______   / / /_/ / / / / /  \ \ \        / / /_/ / // /\ \___\/ /        / / /_/ / / / / /_/ / // / /  \ \_\ 
-   / / / /\_____\ / / /__\/ / / / /___/ /\ \      / / /__\/ // / /\/___/ /        / / /__\/ / / / /__\/ // / /    \/_/ 
-  / / /  \/____ // / /_____/ / / /_____/ /\ \    / / /_____// / /   / / /        / / /_____/ / / /_____// / /          
- / / /_____/ / // / /\ \ \  / /_________/\ \ \  / / /      / / /   / / /        / / /\ \ \  / / /      / / /________   
-/ / /______\/ // / /  \ \ \/ / /_       __\ \_\/ / /      / / /   / / /        / / /  \ \ \/ / /      / / /_________\  
-\/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/  
-
-`
-	s.logger.Noticef("%s", tx)
-
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
@@ -263,12 +266,6 @@ func (s *Server) mountGraphHTTPServer() error {
 	}
 
 	router.Handle(graphEndpoint, s.graphHTTPHandler)
-
-	ls, err := net.Listen("tcp", s.address)
-	if err != nil {
-		return err
-	}
-	s.graphListener = ls
 
 	if s.opts.natsServerOption.TLS {
 		s.logger.Noticef("Connect to https://%s/ for GraphQL playground", s.address)
