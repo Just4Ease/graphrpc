@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func bindServerLogger(natsServer *natsServer.Server, opts *natsServer.Options) {
+func bindServerLogger(nSrv *natsServer.Server, opts *natsServer.Options) {
 	var (
 		slog natsServer.Logger
 	)
@@ -60,7 +60,7 @@ func bindServerLogger(natsServer *natsServer.Server, opts *natsServer.Options) {
                                                                                                                         
 `
 	slog.Noticef("%s", tx)
-	natsServer.SetLoggerV2(slog, opts.Debug, opts.Trace, opts.TraceVerbose)
+	nSrv.SetLoggerV2(slog, opts.Debug, opts.Trace, opts.TraceVerbose)
 }
 
 // PrintAndDie is exported for access in other packages.

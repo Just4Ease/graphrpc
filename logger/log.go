@@ -67,7 +67,7 @@ func NewStdLogger(time, debug, trace, colors, pid bool) natsServer.Logger {
 }
 
 // NewFileLogger creates a logger with output directed to a file
-func NewFileLogger(filename string, time, debug, trace, pid bool) *Logger {
+func NewFileLogger(filename string, time, debug, trace, pid bool) natsServer.Logger {
 	flags := 0
 	if time {
 		flags = log.LstdFlags | log.Lmicroseconds
