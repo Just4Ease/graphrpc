@@ -18,9 +18,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	natsServer "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	goLog "log"
 	"net"
@@ -36,9 +40,10 @@ type Options struct {
 	natsServerOption        *natsServer.Options // server nats-server options
 	natsServerClientOptions []nats.Option       // server nats-client options
 	graphEntrypoint         string              // graph entrypoint
+	disablePlayground       bool                // disable playground
 	preRunHook              preRunHook
-	// postRunHook runs after the nats server connection
-	postRunHook postRunHook
+	postRunHook             postRunHook
+	middlewares             []func(http.Handler) http.Handler
 }
 
 type preRunHook func() error
@@ -63,6 +68,10 @@ func NewServerOptions(serverName string, graphEntryPoint string) *Options {
 		graphEntrypoint:         graphEntryPoint, // forward slash graph
 		natsServerOption:        nil,
 		natsServerClientOptions: make([]nats.Option, 0),
+		disablePlayground:       false,
+		preRunHook:              nil,
+		postRunHook:             nil,
+		middlewares:             nil,
 	}
 }
 
@@ -123,6 +132,10 @@ func (o *Options) SetPostRunHook(f postRunHook) {
 	o.postRunHook = f
 }
 
+func (o *Options) SetMiddlewares(middlewares ...func(http.Handler) http.Handler) {
+	o.middlewares = append(o.middlewares, middlewares...)
+}
+
 type Server struct {
 	mu                       *sync.Mutex
 	natsServer               *natsServer.Server    // server nats-server
@@ -159,55 +172,38 @@ func NewServer(address string, handler http.Handler, option Options) *Server {
 
 func (s *Server) Serve() error {
 
-	if err := s.opts.preRunHook(); err != nil {
-		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
-		return err
+	if s.opts.preRunHook != nil {
+		if err := s.opts.preRunHook(); err != nil {
+			return errors.Wrap(err, "failed to execute preRunHook")
+		}
 	}
 
 	ls, err := net.Listen("tcp", s.address)
 	if err != nil {
 		return err
 	}
+
 	s.graphListener = ls
 
 	s.natsServer = connServer(s.opts.natsServerOption)
 
-	address := s.natsServer.Addr()
-	if s.snc, err = nats.Connect(address.String(), s.opts.natsServerClientOptions...); err != nil {
-		//PrintAndDie(err.Error())
+	if s.snc, err = nats.Connect(s.natsServer.Addr().String(), s.opts.natsServerClientOptions...); err != nil {
 		return err
 	}
 
 	if s.sjs, err = s.snc.JetStream(); err != nil {
-		//PrintAndDie(err.Error())
 		return err
 	}
 
 	go s.mountGraphSubscriber()
 
-	if s.opts.natsServerOption.TLS {
-		if err := http.ServeTLS(
-			s.graphListener,
-			s.graphHTTPHandler,
-			s.opts.natsServerOption.TLSCaCert,
-			s.opts.natsServerOption.TLSKey,
-		); err != nil {
-			return err
+	if s.opts.postRunHook != nil {
+		if err := s.opts.postRunHook(s.natsServer, s.snc, s.sjs); err != nil {
+			return errors.Wrap(err, "failed to execute post run hook")
 		}
-
-		return nil
 	}
 
-	if err := s.opts.postRunHook(s.natsServer, s.snc, s.sjs); err != nil {
-		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
-		return err
-	}
-
-	if err := http.Serve(s.graphListener, s.graphHTTPHandler); err != nil {
-		return err
-	}
-
-	return nil
+	return s.mountGraphHTTPServer()
 }
 
 func (s *Server) mountGraphSubscriber() {
@@ -234,6 +230,36 @@ func (s *Server) mountGraphSubscriber() {
 		goLog.Fatal(err)
 	}
 	<-make(chan bool)
+}
+
+func (s *Server) mountGraphHTTPServer() error {
+	router := chi.NewRouter()
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	if s.opts.middlewares != nil && len(s.opts.middlewares) != 0 {
+		router.Use(s.opts.middlewares...)
+	}
+
+	if !s.opts.disablePlayground {
+		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("content-type", "text/html")
+			_, _ = fmt.Fprintf(writer, "<a>%s is running... Please contact administrator for more details</a>", s.opts.serverName)
+		})
+	}
+
+	graphEndpoint := fmt.Sprintf("/%s", s.opts.graphEntrypoint)
+	if s.opts.disablePlayground {
+		router.Handle("/", playground.Handler("GraphQL playground", graphEndpoint))
+	}
+
+	router.Handle(graphEndpoint, s.graphHTTPHandler)
+
+	if !s.opts.natsServerOption.TLS {
+		return http.Serve(s.graphListener, router)
+	}
+
+	return http.ServeTLS(s.graphListener, router, s.opts.natsServerOption.TLSCaCert, s.opts.natsServerOption.TLSKey)
 }
 
 func (s *Server) WaitForShutdown() {
