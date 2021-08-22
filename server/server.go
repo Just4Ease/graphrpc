@@ -49,6 +49,9 @@ type Options struct {
 type preRunHook func() error
 type postRunHook func(natsServer *natsServer.Server, natsClientConn *nats.Conn, jetStreamClient nats.JetStreamContext) error
 
+type GraphDependencies struct {
+}
+
 func NewServerOptions(serverName string, graphEntryPoint string) *Options {
 	if strings.TrimSpace(serverName) == empty {
 		goLog.Fatal("Server name is required!")
