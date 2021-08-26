@@ -1,25 +1,67 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
+	"log"
 	"net/http"
 
 	"github.com/Yamashou/gqlgenc/graphqljson"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
-// HTTPRequestOption represents the options applicable to the http client
-type HTTPRequestOption func(req *http.Request)
+type Options struct {
+	ncOpts  []nats.Option
+	nc      *nats.Conn
+	natsUrl string
+	Headers Header
+}
+
+type Option func(*Options) error
+
+func SetNatsUrl(url string) Option {
+	return func(options *Options) error {
+		options.natsUrl = url
+		return nil
+	}
+}
+
+func SetNatsOptions(opts ...nats.Option) Option {
+	return func(options *Options) error {
+		options.ncOpts = append(options.ncOpts, opts...)
+		return nil
+	}
+}
+
+func UseNatsCon(nc *nats.Conn) Option {
+	return func(options *Options) error {
+		if nc == nil {
+			return errors.New("invalid nats connection provided")
+		}
+
+		options.nc = nc
+		return nil
+	}
+}
+
+func SetHeader(key, value string) Option {
+	return func(options *Options) error {
+		options.Headers.Add(key, value)
+		return nil
+	}
+}
+
+type Header = http.Header
 
 // Client is the http client wrapper
 type Client struct {
-	Client             *http.Client
-	BaseURL            string
-	HTTPRequestOptions []HTTPRequestOption
+	nc      *nats.Conn
+	opts    *Options
+	BaseURL string
+	Headers Header
 }
 
 // Request represents an outgoing GraphQL request
@@ -30,18 +72,46 @@ type Request struct {
 }
 
 // NewClient creates a new http client wrapper
-func NewClient(client *http.Client, baseURL string, options ...HTTPRequestOption) *Client {
-	return &Client{
-		Client:             client,
-		BaseURL:            baseURL,
-		HTTPRequestOptions: options,
+func NewClient(remoteServiceName, remoteServiceGraphEntrypoint string, options ...Option) (*Client, error) {
+	opts := &Options{ncOpts: []nats.Option{}, natsUrl: "", Headers: nil}
+
+	var err error
+	for _, option := range options {
+		if err = option(opts); err != nil {
+			log.Printf("failed to apply client option: %v", err)
+			return nil, err
+		}
 	}
+
+	if opts.nc == nil {
+		if opts.natsUrl == "" {
+			log.Print("nats url not provided using default option")
+		}
+
+		opts.ncOpts = append(opts.ncOpts, nats.Name(fmt.Sprintf("%s-client", remoteServiceName)))
+		opts.nc, err = nats.Connect(opts.natsUrl, opts.ncOpts...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Detect 1st in api/graph remote entrypoint and strip it
+	if remoteServiceGraphEntrypoint[:1] == "/" {
+		remoteServiceGraphEntrypoint = remoteServiceGraphEntrypoint[1:]
+	}
+
+	return &Client{
+		nc:      opts.nc,
+		BaseURL: fmt.Sprintf("%s.%s", remoteServiceName, remoteServiceGraphEntrypoint),
+		opts:    opts,
+		Headers: opts.Headers,
+	}, nil
 }
 
-func (c *Client) newRequest(ctx context.Context, operationName, query string, vars map[string]interface{}, httpRequestOptions []HTTPRequestOption) (*http.Request, error) {
+func (c *Client) exec(ctx context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
 	r := &Request{
 		Query:         query,
-		Variables:     vars,
+		Variables:     variables,
 		OperationName: operationName,
 	}
 
@@ -50,19 +120,15 @@ func (c *Client) newRequest(ctx context.Context, operationName, query string, va
 		return nil, fmt.Errorf("encode: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, bytes.NewBuffer(requestBody))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	msg, err := c.nc.RequestWithContext(ctx, c.BaseURL, requestBody)
 	if err != nil {
-		return nil, fmt.Errorf("create request struct failed: %w", err)
+		return nil, err
 	}
 
-	for _, httpRequestOption := range c.HTTPRequestOptions {
-		httpRequestOption(req)
-	}
-	for _, httpRequestOption := range httpRequestOptions {
-		httpRequestOption(req)
-	}
-
-	return req, nil
+	return msg.Data, nil
 }
 
 // GqlErrorList is the struct of a standard graphql error response
@@ -104,26 +170,14 @@ func (er *ErrorResponse) Error() string {
 
 // Post sends a http POST request to the graphql endpoint with the given query then unpacks
 // the response into the given object.
-func (c *Client) Post(ctx context.Context, operationName, query string, respData interface{}, vars map[string]interface{}, httpRequestOptions ...HTTPRequestOption) error {
-	req, err := c.newRequest(ctx, operationName, query, vars, httpRequestOptions)
-	if err != nil {
-		return fmt.Errorf("don't create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	req.Header.Set("Accept", "application/json; charset=utf-8")
-
-	resp, err := c.Client.Do(req)
+func (c *Client) Exec(ctx context.Context, operationName, query string, respData interface{}, vars map[string]interface{}, headers Header) error {
+	result, err := c.exec(ctx, operationName, query, vars, headers)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
 
-	return parseResponse(body, resp.StatusCode, respData)
+	return parseResponse(result, 200, respData)
 }
 
 func parseResponse(body []byte, httpCode int, result interface{}) error {

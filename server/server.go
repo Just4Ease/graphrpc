@@ -210,6 +210,7 @@ func (s *Server) Serve() error {
 		return err
 	}
 
+	go s.mountGraphIntrospectionSubscriber()
 	go s.mountGraphSubscriber()
 
 	if s.opts.postRunHook != nil {
