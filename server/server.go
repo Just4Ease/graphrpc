@@ -18,9 +18,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	natsServer "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	goLog "log"
 	"net"
@@ -36,13 +40,17 @@ type Options struct {
 	natsServerOption        *natsServer.Options // server nats-server options
 	natsServerClientOptions []nats.Option       // server nats-client options
 	graphEntrypoint         string              // graph entrypoint
+	enablePlayground        bool                // disable playground
 	preRunHook              preRunHook
-	// postRunHook runs after the nats server connection
-	postRunHook postRunHook
+	postRunHook             postRunHook
+	middlewares             []func(http.Handler) http.Handler
 }
 
 type preRunHook func() error
 type postRunHook func(natsServer *natsServer.Server, natsClientConn *nats.Conn, jetStreamClient nats.JetStreamContext) error
+
+type GraphDependencies struct {
+}
 
 func NewServerOptions(serverName string, graphEntryPoint string) *Options {
 	if strings.TrimSpace(serverName) == empty {
@@ -63,6 +71,10 @@ func NewServerOptions(serverName string, graphEntryPoint string) *Options {
 		graphEntrypoint:         graphEntryPoint, // forward slash graph
 		natsServerOption:        nil,
 		natsServerClientOptions: make([]nats.Option, 0),
+		enablePlayground:        true,
+		preRunHook:              nil,
+		postRunHook:             nil,
+		middlewares:             nil,
 	}
 }
 
@@ -78,7 +90,7 @@ func (o *Options) SetNatsServerOpts(opts *natsServer.Options) {
 	if err != nil {
 		PrintAndDie(fmt.Sprintf("%s: %s", exe, err))
 	} else if argsOrConfigOptions.CheckConfig {
-		fmt.Fprintf(os.Stderr, "%s: configuration file %s is valid\n", exe, argsOrConfigOptions.ConfigFile)
+		_, _ = fmt.Fprintf(os.Stderr, "%s: configuration file %s is valid\n", exe, argsOrConfigOptions.ConfigFile)
 		os.Exit(0)
 	}
 
@@ -109,18 +121,22 @@ func (o *Options) SetNatsServerClientOptions(option ...nats.Option) {
 	o.natsServerClientOptions = append(o.natsServerClientOptions, option...)
 }
 
-func (o *Options) SetGraphEntrypointOption(entrypoint string) {
-	o.graphEntrypoint = entrypoint
-}
-
-// SetPreRunHook is
+// SetPreRunHook
 func (o *Options) SetPreRunHook(f preRunHook) {
 	o.preRunHook = f
 }
 
-// SetPostRunHook is
+// SetPostRunHook
 func (o *Options) SetPostRunHook(f postRunHook) {
 	o.postRunHook = f
+}
+
+func (o *Options) SetMiddlewares(middlewares ...func(http.Handler) http.Handler) {
+	o.middlewares = append(o.middlewares, middlewares...)
+}
+
+func (o *Options) DisableGraphPlayground() {
+	o.enablePlayground = false
 }
 
 type Server struct {
@@ -132,7 +148,7 @@ type Server struct {
 	graphHTTPHandler         http.Handler          // graphql/rest handler
 	graphListener            net.Listener          // graphql listener
 	graphListenerCloseSignal chan bool             // graphql listener close signal
-	graphEntrypoint          string                // graphql entrypoint
+	logger                   natsServer.Logger
 	address                  string
 }
 
@@ -152,66 +168,62 @@ func NewServer(address string, handler http.Handler, option Options) *Server {
 		address:                  address,
 		opts:                     &option,
 		graphHTTPHandler:         handler,
-		graphEntrypoint:          option.graphEntrypoint,
+		logger:                   setupLogger(option.natsServerOption),
 		graphListenerCloseSignal: make(chan bool),
 	}
 }
 
 func (s *Server) Serve() error {
-
-	if err := s.opts.preRunHook(); err != nil {
-		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
-		return err
+	if s.opts.preRunHook != nil {
+		if err := s.opts.preRunHook(); err != nil {
+			return errors.Wrap(err, "failed to execute preRunHook")
+		}
 	}
 
-	ls, err := net.Listen("tcp", s.address)
-	if err != nil {
-		return err
-	}
-	s.graphListener = ls
+	tx := `
+         _              _           _                   _          _       _            _           _           _      
+        /\ \           /\ \        / /\                /\ \       / /\    / /\         /\ \        /\ \       /\ \     
+       /  \ \         /  \ \      / /  \              /  \ \     / / /   / / /        /  \ \      /  \ \     /  \ \    
+      / /\ \_\       / /\ \ \    / / /\ \            / /\ \ \   / /_/   / / /        / /\ \ \    / /\ \ \   / /\ \ \   
+     / / /\/_/      / / /\ \_\  / / /\ \ \          / / /\ \_\ / /\ \__/ / /        / / /\ \_\  / / /\ \_\ / / /\ \ \  
+    / / / ______   / / /_/ / / / / /  \ \ \        / / /_/ / // /\ \___\/ /        / / /_/ / / / / /_/ / // / /  \ \_\ 
+   / / / /\_____\ / / /__\/ / / / /___/ /\ \      / / /__\/ // / /\/___/ /        / / /__\/ / / / /__\/ // / /    \/_/ 
+  / / /  \/____ // / /_____/ / / /_____/ /\ \    / / /_____// / /   / / /        / / /_____/ / / /_____// / /          
+ / / /_____/ / // / /\ \ \  / /_________/\ \ \  / / /      / / /   / / /        / / /\ \ \  / / /      / / /________   
+/ / /______\/ // / /  \ \ \/ / /_       __\ \_\/ / /      / / /   / / /        / / /  \ \ \/ / /      / / /_________\  
+\/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/  
 
-	s.natsServer = connServer(s.opts.natsServerOption)
+`
+	s.logger.Noticef("%s", tx)
+	s.natsServer = connServer(s.opts.natsServerOption, s.logger)
 
-	address := s.natsServer.Addr()
-	if s.snc, err = nats.Connect(address.String(), s.opts.natsServerClientOptions...); err != nil {
-		//PrintAndDie(err.Error())
+	var err error
+	if s.snc, err = nats.Connect(s.natsServer.Addr().String(), s.opts.natsServerClientOptions...); err != nil {
 		return err
 	}
 
 	if s.sjs, err = s.snc.JetStream(); err != nil {
-		//PrintAndDie(err.Error())
 		return err
 	}
 
+	if s.graphListener, err = net.Listen("tcp", s.address); err != nil {
+		return err
+	}
+
+	go s.mountGraphIntrospectionSubscriber()
 	go s.mountGraphSubscriber()
 
-	if s.opts.natsServerOption.TLS {
-		if err := http.ServeTLS(
-			s.graphListener,
-			s.graphHTTPHandler,
-			s.opts.natsServerOption.TLSCaCert,
-			s.opts.natsServerOption.TLSKey,
-		); err != nil {
-			return err
+	if s.opts.postRunHook != nil {
+		if err := s.opts.postRunHook(s.natsServer, s.snc, s.sjs); err != nil {
+			return errors.Wrap(err, "failed to execute post run hook")
 		}
-
-		return nil
 	}
 
-	if err := s.opts.postRunHook(s.natsServer, s.snc, s.sjs); err != nil {
-		goLog.Printf("failed to execute post run hook with the following errors: %v", err)
-		return err
-	}
-
-	if err := http.Serve(s.graphListener, s.graphHTTPHandler); err != nil {
-		return err
-	}
-
-	return nil
+	return s.mountGraphHTTPServer()
 }
 
 func (s *Server) mountGraphSubscriber() {
-	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.graphEntrypoint)
+	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint)
 	// TODO: Use axon format.
 
 	protocol := "https://"
@@ -219,7 +231,7 @@ func (s *Server) mountGraphSubscriber() {
 		protocol = strings.ReplaceAll(protocol, "s", "")
 	}
 
-	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.graphEntrypoint)
+	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.opts.graphEntrypoint)
 	_, err := s.snc.QueueSubscribe(root, s.opts.serverName, func(msg *nats.Msg) {
 		r, err := http.Post(endpoint, mimetype.Detect(msg.Data).String(), bytes.NewReader(msg.Data))
 		if err != nil {
@@ -236,13 +248,47 @@ func (s *Server) mountGraphSubscriber() {
 	<-make(chan bool)
 }
 
+func (s *Server) mountGraphHTTPServer() error {
+	router := chi.NewRouter()
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	if s.opts.middlewares != nil && len(s.opts.middlewares) != 0 {
+		router.Use(s.opts.middlewares...)
+	}
+
+	if !s.opts.enablePlayground {
+		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("content-type", "text/html")
+			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.opts.serverName)
+		})
+	}
+
+	graphEndpoint := fmt.Sprintf("/%s", s.opts.graphEntrypoint)
+	if s.opts.enablePlayground {
+		router.Handle("/", playground.Handler("GraphQL playground", graphEndpoint))
+	}
+
+	router.Handle(graphEndpoint, s.graphHTTPHandler)
+
+	if s.opts.natsServerOption.TLS {
+		s.logger.Noticef("Connect to https://%s/ for GraphQL playground", s.address)
+		s.logger.Noticef("GraphRPC HTTP Endpoint running on to https://%s/%s ", s.address, s.opts.graphEntrypoint)
+		return http.ServeTLS(s.graphListener, router, s.opts.natsServerOption.TLSCaCert, s.opts.natsServerOption.TLSKey)
+	}
+
+	s.logger.Noticef("Connect to http://%s/ for GraphQL playground", s.address)
+	s.logger.Noticef("GraphRPC HTTP Endpoint running on to http://%s/%s ", s.address, s.opts.graphEntrypoint)
+	return http.Serve(s.graphListener, router)
+}
+
 func (s *Server) WaitForShutdown() {
 	s.natsServer.WaitForShutdown()
 	// close http server
 	_ = s.graphListener.Close()
 }
 
-func connServer(opts *natsServer.Options) *natsServer.Server {
+func connServer(opts *natsServer.Options, logger natsServer.Logger) *natsServer.Server {
 	// Create the server with appropriate options.
 	s, err := natsServer.NewServer(opts)
 	if err != nil {
@@ -252,7 +298,10 @@ func connServer(opts *natsServer.Options) *natsServer.Server {
 	// Configure the logger based on the flags
 	//lg := logger.NewSysLogger(true, true)
 	//s.SetLoggerV2(lg, true, true, true)
-	bindServerLogger(s, opts)
+	if logger != nil {
+		s.SetLoggerV2(logger, opts.Debug, opts.Trace, opts.TraceVerbose)
+	}
+
 	//s.ConfigureLogger()
 
 	// Start things up. Block here until done.

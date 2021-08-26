@@ -7,13 +7,13 @@ import (
 	"os"
 )
 
-func bindServerLogger(natsServer *natsServer.Server, opts *natsServer.Options) {
+func setupLogger(opts *natsServer.Options) natsServer.Logger {
 	var (
 		slog natsServer.Logger
 	)
 
 	if opts.NoLog {
-		return
+		return nil
 	}
 
 	syslog := opts.Syslog
@@ -45,22 +45,7 @@ func bindServerLogger(natsServer *natsServer.Server, opts *natsServer.Options) {
 		slog = logger.NewStdLogger(opts.Logtime, opts.Debug, opts.Trace, colors, true)
 	}
 
-	tx := `
-         _              _           _                   _          _       _            _           _           _       
-        /\ \           /\ \        / /\                /\ \       / /\    / /\         /\ \        /\ \       /\ \      
-       /  \ \         /  \ \      / /  \              /  \ \     / / /   / / /        /  \ \      /  \ \     /  \ \     
-      / /\ \_\       / /\ \ \    / / /\ \            / /\ \ \   / /_/   / / /        / /\ \ \    / /\ \ \   / /\ \ \    
-     / / /\/_/      / / /\ \_\  / / /\ \ \          / / /\ \_\ / /\ \__/ / /        / / /\ \_\  / / /\ \_\ / / /\ \ \   
-    / / / ______   / / /_/ / / / / /  \ \ \        / / /_/ / // /\ \___\/ /        / / /_/ / / / / /_/ / // / /  \ \_\  
-   / / / /\_____\ / / /__\/ / / / /___/ /\ \      / / /__\/ // / /\/___/ /        / / /__\/ / / / /__\/ // / /    \/_/  
-  / / /  \/____ // / /_____/ / / /_____/ /\ \    / / /_____// / /   / / /        / / /_____/ / / /_____// / /           
- / / /_____/ / // / /\ \ \  / /_________/\ \ \  / / /      / / /   / / /        / / /\ \ \  / / /      / / /________    
-/ / /______\/ // / /  \ \ \/ / /_       __\ \_\/ / /      / / /   / / /        / / /  \ \ \/ / /      / / /_________\   
-\/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/   
-                                                                                                                        
-`
-	slog.Noticef("%s", tx)
-	natsServer.SetLoggerV2(slog, opts.Debug, opts.Trace, opts.TraceVerbose)
+	return slog
 }
 
 // PrintAndDie is exported for access in other packages.
