@@ -4,57 +4,51 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/nats-io/nats.go"
+	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	goLog "log"
 	"net/http"
-	"strings"
 )
 
 func (s *Server) mountGraphIntrospectionSubscriber() {
 	root := fmt.Sprintf("%s.introspect", s.opts.serverName)
-	// TODO: Use axon format.
 
-	protocol := "https://"
-	if !s.opts.natsServerOption.TLS {
-		protocol = strings.ReplaceAll(protocol, "s", "")
-	}
+	endpoint := fmt.Sprintf("http://%s/%s", s.graphListener.Addr().String(), s.opts.graphEntrypoint)
 
-	endpoint := fmt.Sprintf("%s%s/%s", protocol, s.graphListener.Addr().String(), s.opts.graphEntrypoint)
-	_, err := s.snc.QueueSubscribe(root, s.opts.serverName, func(msg *nats.Msg) {
-		if !s.opts.enablePlayground {
-			_ = msg.Respond([]byte("introspection disabled"))
-			return
-		}
-
+	if err := s.axonClient.Reply(root, func(mg *messages.Message) (*messages.Message, error) {
 		type Body struct {
 			Query     string                 `json:"query"`
 			Variables map[string]interface{} `json:"variables"`
 		}
 
-		body := &Body{
+		payload := &Body{
 			Query:     IntrospectionQuery,
 			Variables: nil,
 		}
 
-		marsh, _ := json.Marshal(body)
+		marsh, _ := json.Marshal(payload)
 		r, err := http.Post(endpoint, "application/json", bytes.NewReader(marsh))
-
 		if err != nil {
-			_ = msg.Respond([]byte("not available at this time"))
-			return
+			return nil, err
 		}
 
-		b, _ := ioutil.ReadAll(r.Body)
-		_ = msg.Respond(b)
-	})
-	if err != nil {
+		body, err := ioutil.ReadAll(r.Body)
+		if len(body) != 0 {
+			return mg.WithBody(body), nil
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, errors.New("internal server error")
+	}); err != nil {
 		goLog.Fatal(err)
 	}
+
 	<-make(chan bool)
 }
-
-
 
 const IntrospectionQuery = `
  query IntrospectionQuery {

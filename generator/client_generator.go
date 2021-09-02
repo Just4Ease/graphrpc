@@ -7,11 +7,11 @@ import (
 	genCfg "github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin"
 	"github.com/99designs/gqlgen/plugin/modelgen"
+	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/graphrpc/client"
 	"github.com/Just4Ease/graphrpc/config"
 	"github.com/Just4Ease/graphrpc/generator/clientgen"
 	gencConf "github.com/Yamashou/gqlgenc/config"
-	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"os"
 	"path"
@@ -19,22 +19,20 @@ import (
 )
 
 type ClientGenerator struct {
-	PackageName          string
-	PackagePath          string
-	RemoteServiceName          string
-	RemoteServiceGraphEntrypoint    string
-	customTypes          []customType
-	QueriesPath          string
-	QueryParamsPrefix    string
-	QueryParamsSuffix    string
-	MutationParamsPrefix string
-	MutationParamsSuffix string
-	Headers              map[string]string
-	ClientV2             bool
-	cfg                  *gencConf.Config
-	NatsConn             *nats.Conn
-	NatsConnOpts         []nats.Option
-	NatsConnUrl          string
+	PackageName                  string
+	PackagePath                  string
+	RemoteServiceName            string
+	RemoteServiceGraphEntrypoint string
+	customTypes                  []customType
+	QueriesPath                  string
+	QueryParamsPrefix            string
+	QueryParamsSuffix            string
+	MutationParamsPrefix         string
+	MutationParamsSuffix         string
+	Headers                      map[string]string
+	ClientV2                     bool
+	cfg                          *gencConf.Config
+	Conn                         axon.EventStore
 }
 
 type customType struct {
@@ -105,30 +103,12 @@ func RemoteGraphQLPath(path string, headers map[string]string) ClientGeneratorOp
 	}
 }
 
-// UseNatsConnection is an Option to set nats connection to be used for introspection on remote GraphRPC server
-// This overrides SetNatsOptions & SetNatsConnectionURL Options
-func UseNatsConnection(nc *nats.Conn) ClientGeneratorOption {
+// SetAxonConn is an Option to set axon connection. See https://github.com/Just4Ease/axon
+func SetAxonConn(conn axon.EventStore) ClientGeneratorOption {
 	return func(o *ClientGenerator) error {
-		if nc == nil {
-			return errors.New("invalid nats connection provided")
+		if conn == nil {
+			return errors.New("axon connection must not be nil. see https://github.com/Just4Ease/axon")
 		}
-		o.NatsConn = nc
-		return nil
-	}
-}
-
-// SetNatsOptions is an Option to set internal nats client options that'll be used to connect to remote GraphRPC server for introspection
-func SetNatsOptions(option ...nats.Option) ClientGeneratorOption {
-	return func(o *ClientGenerator) error {
-		o.NatsConnOpts = append(o.NatsConnOpts, option...)
-		return nil
-	}
-}
-
-// SetNatsConnectionURL is an Option to set internal nats client connection url that'll be used to connect to remote GraphRPC server for introspection
-func SetNatsConnectionURL(url string) ClientGeneratorOption {
-	return func(o *ClientGenerator) error {
-		o.NatsConnUrl = url
 		return nil
 	}
 }
@@ -157,10 +137,8 @@ func NewClientGenerator(generateToDirectory string) *Clients {
 	return &Clients{list: list, generateToDirectory: generateToDirectory}
 }
 
-func (c *Clients) AddClient(RemoteServiceName string, opts ...ClientGeneratorOption) error {
-	clientGenerator := &ClientGenerator{
-		RemoteServiceName: RemoteServiceName,
-	}
+func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
+	clientGenerator := &ClientGenerator{}
 
 	for _, opt := range opts {
 		if err := opt(clientGenerator); err != nil {
@@ -228,14 +206,6 @@ func (c *Clients) Generate() {
 	ctx := context.Background()
 	for _, g := range c.list {
 		clientGen := api.AddPlugin(clientgen.New(g.cfg.Query, g.cfg.Client, g.cfg.Generate, g.RemoteServiceName, g.RemoteServiceGraphEntrypoint))
-		//if g.cfg.Generate != nil {
-		//	if g.cfg.Generate.ClientV2 {
-		//
-		//	}
-		//}
-
-		//clientGen := api.AddPlugin(clientgenv2.New(g.cfg.Query, g.cfg.Client, g.cfg.Generate))
-
 		if err := generateClientCode(ctx, g, clientGen); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "%+v", err.Error())
 			os.Exit(4)
@@ -272,19 +242,8 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 	}
 
 	remoteSchemaOpts := make([]client.Option, 0)
-	if g.NatsConnUrl != "" {
-		remoteSchemaOpts = append(remoteSchemaOpts, client.SetNatsUrl(g.NatsConnUrl))
-	}
 
-	if g.NatsConn != nil {
-		remoteSchemaOpts = append(remoteSchemaOpts, client.UseNatsCon(g.NatsConn))
-	}
-
-	if g.NatsConnOpts != nil {
-		remoteSchemaOpts = append(remoteSchemaOpts, client.SetNatsOptions(g.NatsConnOpts...))
-	}
-
-	if err := config.LoadSchema(ctx, g.cfg, g.RemoteServiceName, remoteSchemaOpts...); err != nil {
+	if err := config.LoadSchema(ctx, g.cfg, remoteSchemaOpts...); err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
