@@ -16,7 +16,6 @@ import (
 type Options struct {
 	Headers               Header
 	remoteGraphEntrypoint string
-	conn                  axon.EventStore
 }
 
 type Option func(*Options) error
@@ -28,18 +27,6 @@ func SetHeader(key, value string) Option {
 			options.Headers = make(map[string]string)
 		}
 		options.Headers[key] = value
-		return nil
-	}
-}
-
-// SetAxonClient sets the headers for this client. Note, duplicate headers are replaced with the newest value provided
-func SetAxonClient(axonConn axon.EventStore) Option {
-	return func(options *Options) error {
-		if axonConn == nil {
-			return errors.New("axon must not be nil. see github.com/Just4Ease/axon for more details")
-		}
-
-		options.conn = axonConn
 		return nil
 	}
 }
@@ -79,7 +66,7 @@ type Request struct {
 }
 
 // NewClient creates a new http client wrapper
-func NewClient(options ...Option) (*Client, error) {
+func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	opts := &Options{Headers: map[string]string{}}
 
 	for _, option := range options {
@@ -94,13 +81,13 @@ func NewClient(options ...Option) (*Client, error) {
 		opts.remoteGraphEntrypoint = "graphql"
 	}
 
-	if opts.conn == nil {
+	if conn == nil {
 		panic("axon must not be nil. see github.com/Just4Ease/axon for more details on how to connect")
 	}
 
 	return &Client{
-		axonConn: opts.conn,
-		BaseURL:  fmt.Sprintf("%s.%s", opts.conn.GetServiceName(), opts.remoteGraphEntrypoint),
+		axonConn: conn,
+		BaseURL:  fmt.Sprintf("%s.%s", conn.GetServiceName(), opts.remoteGraphEntrypoint),
 		opts:     opts,
 		Headers:  opts.Headers,
 	}, nil

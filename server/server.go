@@ -22,6 +22,7 @@ import (
 	"github.com/Just4Ease/axon/v2/messages"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
 	"io/ioutil"
@@ -119,7 +120,6 @@ type Server struct {
 	opts             *Options        // graph & nats options
 	graphHTTPHandler http.Handler    // graphql/rest handler
 	graphListener    net.Listener    // graphql listener
-	address          string
 }
 
 func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *Server {
@@ -168,11 +168,12 @@ func (s *Server) Serve() error {
 \/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/  
 
 `
-	log.Infof("%s\n", tx)
+	color.Cyan.Printf("%s\n", tx)
+	color.Cyan.Printf("Started Service: %s\n", s.axonClient.GetServiceName())
 
 	var err error
 
-	if s.graphListener, err = net.Listen("tcp", s.address); err != nil {
+	if s.graphListener, err = net.Listen("tcp", s.opts.address); err != nil {
 		return err
 	}
 
@@ -238,8 +239,8 @@ func (s *Server) mountGraphHTTPServer() error {
 	router.Handle(graphEndpoint, s.graphHTTPHandler)
 
 	// TODO: Serve https with tls.
-	log.Infof("http(s)://%s/ -> GraphQL playground\n", s.address)
-	log.Infof("http(s)://%s/%s -> GraphRPC HTTP Endpoint\n", s.address, s.opts.graphEntrypoint)
+	color.Green.Printf("http(s)://%s/ -> GraphQL playground\n", s.opts.address)
+	color.Green.Printf("http(s)://%s/%s -> GraphRPC HTTP Endpoint\n", s.opts.address, s.opts.graphEntrypoint)
 	return http.Serve(s.graphListener, router)
 }
 

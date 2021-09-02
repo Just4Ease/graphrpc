@@ -13,14 +13,16 @@
 
 	{{ reserveImport "github.com/Yamashou/gqlgenc/graphqljson" }}
 	{{ reserveImport "github.com/Just4Ease/graphrpc" }}
+	{{ reserveImport "github.com/Just4Ease/axon/v2" }}
+	{{ reserveImport "github.com/Just4Ease/graphrpc/client" }}
 
 	type ServiceClient struct {
 		client *client.Client
 	}
 
 
-	func NewClient(options ...graphrpc.ClientOption) (*ServiceClient, error) {
-    	client, err := graphrpc.NewClient("{{.RemoteServiceName}}", "{{.RemoteServiceGraphEntrypoint}}", options...)
+	func NewClient(conn axon.EventStore, options ...graphrpc.ClientOption) (*ServiceClient, error) {
+    	client, err := graphrpc.NewClient(conn, options...)
     	if err != nil {
     		return nil, err
     	}

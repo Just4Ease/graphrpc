@@ -15,6 +15,6 @@ func NewServer(conn axon.EventStore, handler http.Handler, option ...ServerOptio
 
 type ClientOption = client.Option
 
-func NewClient(options ...ClientOption) (*client.Client, error) {
-	return client.NewClient(options...)
+func NewClient(conn axon.EventStore, options ...ClientOption) (*client.Client, error) {
+	return client.NewClient(conn, options...)
 }

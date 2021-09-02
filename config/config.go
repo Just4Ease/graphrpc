@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"github.com/Just4Ease/axon/v2"
 	graphRPClient "github.com/Just4Ease/graphrpc/client"
 	"io/ioutil"
 	"os"
@@ -134,7 +135,7 @@ func LoadClientGeneratorCfg(cfg *GraphRPCClientConfig) (*gencConf.Config, error)
 }
 
 // LoadSchema load and parses the schema from a local file or a remote server
-func LoadSchema(ctx context.Context, c *gencConf.Config, opts ...graphRPClient.Option) error {
+func LoadSchema(ctx context.Context, c *gencConf.Config, conn axon.EventStore, opts ...graphRPClient.Option) error {
 	var schema *ast.Schema
 
 	if c.SchemaFilename != nil {
@@ -145,7 +146,7 @@ func LoadSchema(ctx context.Context, c *gencConf.Config, opts ...graphRPClient.O
 
 		schema = s
 	} else {
-		s, err := loadRemoteSchema(ctx, c, opts...)
+		s, err := loadRemoteSchema(ctx, c, conn, opts...)
 		if err != nil {
 			return fmt.Errorf("load remote schema failed: %w", err)
 		}
@@ -166,7 +167,7 @@ func LoadSchema(ctx context.Context, c *gencConf.Config, opts ...graphRPClient.O
 	return nil
 }
 
-func loadRemoteSchema(ctx context.Context, c *gencConf.Config, opts ...graphRPClient.Option) (*ast.Schema, error) {
+func loadRemoteSchema(ctx context.Context, c *gencConf.Config, conn axon.EventStore, opts ...graphRPClient.Option) (*ast.Schema, error) {
 
 	if opts == nil {
 		opts = make([]graphRPClient.Option, 0)
@@ -182,7 +183,7 @@ func loadRemoteSchema(ctx context.Context, c *gencConf.Config, opts ...graphRPCl
 
 	opts = append(opts, graphRPClient.SetRemoteGraphQLPath("introspect"))
 
-	rpc, err := graphRPClient.NewClient(opts...)
+	rpc, err := graphRPClient.NewClient(conn, opts...)
 	if err != nil {
 		fmt.Print(err, " Erroj")
 		return nil, err

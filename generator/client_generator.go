@@ -109,6 +109,8 @@ func SetAxonConn(conn axon.EventStore) ClientGeneratorOption {
 		if conn == nil {
 			return errors.New("axon connection must not be nil. see https://github.com/Just4Ease/axon")
 		}
+
+		o.Conn = conn
 		return nil
 	}
 }
@@ -243,7 +245,7 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 
 	remoteSchemaOpts := make([]client.Option, 0)
 
-	if err := config.LoadSchema(ctx, g.cfg, remoteSchemaOpts...); err != nil {
+	if err := config.LoadSchema(ctx, g.cfg, g.Conn, remoteSchemaOpts...); err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 

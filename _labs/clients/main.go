@@ -12,7 +12,7 @@ func main() {
 
 	eventStore, err := jetstream.Init(options.Options{
 		ServiceName: "ms-vendors",
-		Address:     "nats://127.0.0.1:7000",
+		Address:     "nats://127.0.0.1:4222",
 		Marshaler:   msgpack.Marshaler{},
 	})
 
@@ -29,7 +29,7 @@ func main() {
 			opts: []generator.ClientGeneratorOption{
 				generator.SetAxonConn(eventStore),
 				generator.Package("vendorService", "/vendors"),
-				generator.QueriesPath("definitions/**/*.graphql"),
+				//generator.QueriesPath("definitions/**/*.graphql"),
 				generator.RemoteGraphQLPath("/graphql", nil),
 			},
 		},
