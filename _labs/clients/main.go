@@ -21,8 +21,7 @@ func main() {
 	gen := generator.NewClientGenerator("./services")
 
 	clients := []struct {
-		serviceName string
-		opts        []generator.ClientGeneratorOption
+		opts []generator.ClientGeneratorOption
 	}{
 		{
 			opts: []generator.ClientGeneratorOption{
