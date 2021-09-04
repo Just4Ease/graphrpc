@@ -12,6 +12,7 @@ import (
 	"github.com/Just4Ease/graphrpc/config"
 	"github.com/Just4Ease/graphrpc/generator/clientgen"
 	gencConf "github.com/Yamashou/gqlgenc/config"
+	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"os"
 	"path"
@@ -220,6 +221,8 @@ func (c *Clients) Generate() {
 			_, _ = fmt.Fprintf(os.Stderr, "%+v", err.Error())
 			os.Exit(4)
 		}
+
+		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }
 

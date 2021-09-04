@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Just4Ease/axon/v2/codec/msgpack"
 	"github.com/Just4Ease/axon/v2/options"
 	"github.com/Just4Ease/axon/v2/systems/jetstream"
 	"github.com/Just4Ease/graphrpc/client"
@@ -18,7 +17,6 @@ func main() {
 	ax, err := jetstream.Init(options.Options{
 		ServiceName: "gateway",
 		Address:     "localhost:4222",
-		Marshaler:   msgpack.Marshaler{},
 	})
 
 	s, err := vendorService.NewClient(ax, client.SetRemoteServiceName("ms-vendors"), client.SetRemoteGraphQLPath("graphql"))
@@ -26,12 +24,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	v, err := s.ListVendors(context.Background(), nil)
+	//v, err := s.ListVendors(context.Background(), nil)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+
+	v, err := s.CreateVendor(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	PrettyJson(v.ListVendors)
+	PrettyJson(v.CreateVendor)
 }
 
 const (
