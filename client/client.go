@@ -7,6 +7,7 @@ import (
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
 	"github.com/Just4Ease/axon/v2/options"
+	"github.com/Yamashou/gqlgenc/graphqljson"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"log"
@@ -179,14 +180,18 @@ func (c *Client) Exec(ctx context.Context, operationName, query string, respData
 		return fmt.Errorf("request failed: %w", err)
 	}
 
-	return parseResponse(result, 200, respData)
+	isIntrospection := false
+	if operationName == "introspect" {
+		isIntrospection = true
+	}
+	return parseResponse(result, 200, respData, isIntrospection)
 }
 
 func (c *Client) ServiceName() string {
 	return c.opts.remoteServiceName
 }
 
-func parseResponse(body []byte, httpCode int, result interface{}) error {
+func parseResponse(body []byte, httpCode int, result interface{}, isIntrospection bool) error {
 	errResponse := &ErrorResponse{}
 	isKOCode := httpCode < 200 || 299 < httpCode
 	if isKOCode {
@@ -197,7 +202,7 @@ func parseResponse(body []byte, httpCode int, result interface{}) error {
 	}
 
 	// some servers return a graphql error with a non OK http code, try anyway to parse the body
-	if err := unmarshal(body, result); err != nil {
+	if err := unmarshal(body, result, isIntrospection); err != nil {
 		if gqlErr, ok := err.(*GqlErrorList); ok {
 			errResponse.GqlErrors = &gqlErr.Errors
 		} else if !isKOCode { // if is KO code there is already the http error, this error should not be returned
@@ -218,7 +223,7 @@ type response struct {
 	Errors json.RawMessage `json:"errors"`
 }
 
-func unmarshal(data []byte, res interface{}) error {
+func unmarshal(data []byte, res interface{}, isIntrospection bool) error {
 	resp := response{}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return fmt.Errorf("failed to decode data %s: %w", string(data), err)
@@ -232,6 +237,15 @@ func unmarshal(data []byte, res interface{}) error {
 		}
 
 		return errors
+	}
+
+	if !isIntrospection {
+		if err := graphqljson.UnmarshalData(resp.Data, res); err != nil {
+			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+		}
+
+		return nil
+
 	}
 
 	if err := json.Unmarshal(resp.Data, res); err != nil {
