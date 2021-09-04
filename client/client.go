@@ -4,64 +4,71 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nats-io/nats.go"
+	"github.com/Just4Ease/axon/v2"
+	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/Just4Ease/axon/v2/options"
 	"github.com/pkg/errors"
-	"log"
-	"net/http"
-
-	"github.com/Yamashou/gqlgenc/graphqljson"
 	"github.com/vektah/gqlparser/v2/gqlerror"
+	"log"
+	"strings"
 )
 
 type Options struct {
-	ncOpts  []nats.Option
-	nc      *nats.Conn
-	natsUrl string
-	Headers Header
+	Headers               Header
+	remoteGraphEntrypoint string
+	remoteServiceName     string
 }
 
 type Option func(*Options) error
 
-func SetNatsUrl(url string) Option {
-	return func(options *Options) error {
-		options.natsUrl = url
-		return nil
-	}
-}
-
-func SetNatsOptions(opts ...nats.Option) Option {
-	return func(options *Options) error {
-		options.ncOpts = append(options.ncOpts, opts...)
-		return nil
-	}
-}
-
-func UseNatsCon(nc *nats.Conn) Option {
-	return func(options *Options) error {
-		if nc == nil {
-			return errors.New("invalid nats connection provided")
-		}
-
-		options.nc = nc
-		return nil
-	}
-}
-
+// SetHeader sets the headers for this client. Note, duplicate headers are replaced with the newest value provided
 func SetHeader(key, value string) Option {
 	return func(options *Options) error {
-		options.Headers.Add(key, value)
+		if options.Headers == nil {
+			options.Headers = make(map[string]string)
+		}
+		options.Headers[key] = value
 		return nil
 	}
 }
 
-type Header = http.Header
+// SetRemoteGraphQLPath is used to set the graphql path of the remote service for generation to occur.
+func SetRemoteGraphQLPath(path string) Option {
+	return func(o *Options) error {
+		if strings.TrimSpace(path) == "" {
+			return errors.New("GraphQL entrypoint path is required!")
+		}
+
+		// Detect 1st in api/graph entrypoint and strip it
+		if path[:1] == "/" {
+			path = path[1:]
+		}
+
+		o.remoteGraphEntrypoint = path
+		return nil
+	}
+}
+
+// SetRemoteServiceName is used to set the service name of the remote service for this client.
+func SetRemoteServiceName(remoteServiceName string) Option {
+	return func(o *Options) error {
+		if strings.TrimSpace(remoteServiceName) == "" {
+			return errors.New("Remote GraphRPC Service name is required!")
+		}
+
+		o.remoteServiceName = remoteServiceName
+		return nil
+	}
+}
+
+type Header = map[string]string
 
 // Client is the http client wrapper
 type Client struct {
-	nc      *nats.Conn
-	opts    *Options
-	BaseURL string
-	Headers Header
+	axonConn axon.EventStore
+	opts     *Options
+	BaseURL  string
+	Headers  Header
 }
 
 // Request represents an outgoing GraphQL request
@@ -72,43 +79,38 @@ type Request struct {
 }
 
 // NewClient creates a new http client wrapper
-func NewClient(remoteServiceName, remoteServiceGraphEntrypoint string, options ...Option) (*Client, error) {
-	opts := &Options{ncOpts: []nats.Option{}, natsUrl: "", Headers: nil}
+func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
+	opts := &Options{Headers: map[string]string{}}
 
-	var err error
 	for _, option := range options {
-		if err = option(opts); err != nil {
+		if err := option(opts); err != nil {
 			log.Printf("failed to apply client option: %v", err)
 			return nil, err
 		}
 	}
 
-	if opts.nc == nil {
-		if opts.natsUrl == "" {
-			log.Print("nats url not provided using default option")
-		}
-
-		opts.ncOpts = append(opts.ncOpts, nats.Name(fmt.Sprintf("%s-client", remoteServiceName)))
-		opts.nc, err = nats.Connect(opts.natsUrl, opts.ncOpts...)
-		if err != nil {
-			return nil, err
-		}
+	if opts.remoteGraphEntrypoint == "" {
+		log.Print("using default GraphRPC remote graph entrypoint path: '/graphql'...")
+		opts.remoteGraphEntrypoint = "graphql"
 	}
 
-	// Detect 1st in api/graph remote entrypoint and strip it
-	if remoteServiceGraphEntrypoint[:1] == "/" {
-		remoteServiceGraphEntrypoint = remoteServiceGraphEntrypoint[1:]
+	if opts.remoteServiceName == "" {
+		return nil, errors.New("remote graphrpc service name is required!")
+	}
+
+	if conn == nil {
+		panic("axon must not be nil. see github.com/Just4Ease/axon for more details on how to connect")
 	}
 
 	return &Client{
-		nc:      opts.nc,
-		BaseURL: fmt.Sprintf("%s.%s", remoteServiceName, remoteServiceGraphEntrypoint),
-		opts:    opts,
-		Headers: opts.Headers,
+		axonConn: conn,
+		BaseURL:  fmt.Sprintf("%s.%s", opts.remoteServiceName, opts.remoteGraphEntrypoint),
+		opts:     opts,
+		Headers:  opts.Headers,
 	}, nil
 }
 
-func (c *Client) exec(ctx context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
+func (c *Client) exec(_ context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
 	r := &Request{
 		Query:         query,
 		Variables:     variables,
@@ -120,15 +122,16 @@ func (c *Client) exec(ctx context.Context, operationName, query string, variable
 		return nil, fmt.Errorf("encode: %w", err)
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	msg, err := c.nc.RequestWithContext(ctx, c.BaseURL, requestBody)
+	mg, err := c.axonConn.Request(c.BaseURL, requestBody, options.SetPubHeaders(headers))
 	if err != nil {
 		return nil, err
 	}
 
-	return msg.Data, nil
+	if mg.Type == messages.ErrorMessage {
+		return nil, errors.New(mg.Error)
+	}
+
+	return mg.Body, nil
 }
 
 // GqlErrorList is the struct of a standard graphql error response
@@ -176,8 +179,11 @@ func (c *Client) Exec(ctx context.Context, operationName, query string, respData
 		return fmt.Errorf("request failed: %w", err)
 	}
 
-
 	return parseResponse(result, 200, respData)
+}
+
+func (c *Client) ServiceName() string {
+	return c.opts.remoteServiceName
 }
 
 func parseResponse(body []byte, httpCode int, result interface{}) error {
@@ -228,7 +234,7 @@ func unmarshal(data []byte, res interface{}) error {
 		return errors
 	}
 
-	if err := graphqljson.UnmarshalData(resp.Data, res); err != nil {
+	if err := json.Unmarshal(resp.Data, res); err != nil {
 		return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
 	}
 

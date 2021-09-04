@@ -8,6 +8,7 @@ GraphRPC is simply GraphQL as your RPC Contract Input & Output Layer.
 - No proto contract corruption on any update
 - Programming language agnostic
 - One entry point
+- Custom headers on query || mutations  
 - Client code generation ( thanks to https://github.com/Yamashou/gqlgenc 🚀 )
 - Nats.io integration
 - todo: Server CodeGen ( using https://github.com/99designs/gqlgen ) 
@@ -28,7 +29,5 @@ GraphRPC is simply GraphQL as your RPC Contract Input & Output Layer.
 ## TODO
 
 - [] Subscriptions
-- [] Custom Headers on query
-- [] Use cloud events semantics || axonrpc/messages (msgpack) for marshaling & unmarshaling 
 - [] Add Server generator following 99designs/gqlgen's implementation
-- [] Discover method
+- TLS on server startup.

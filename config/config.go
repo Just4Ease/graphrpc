@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"github.com/Just4Ease/axon/v2"
 	graphRPClient "github.com/Just4Ease/graphrpc/client"
 	"io/ioutil"
 	"os"
@@ -134,7 +135,7 @@ func LoadClientGeneratorCfg(cfg *GraphRPCClientConfig) (*gencConf.Config, error)
 }
 
 // LoadSchema load and parses the schema from a local file or a remote server
-func LoadSchema(ctx context.Context, c *gencConf.Config, remoteServiceName string, opts ...graphRPClient.Option) error {
+func LoadSchema(ctx context.Context, c *gencConf.Config, conn axon.EventStore, opts ...graphRPClient.Option) error {
 	var schema *ast.Schema
 
 	if c.SchemaFilename != nil {
@@ -145,7 +146,7 @@ func LoadSchema(ctx context.Context, c *gencConf.Config, remoteServiceName strin
 
 		schema = s
 	} else {
-		s, err := loadRemoteSchema(ctx, c, remoteServiceName, opts...)
+		s, err := loadRemoteSchema(ctx, c, conn, opts...)
 		if err != nil {
 			return fmt.Errorf("load remote schema failed: %w", err)
 		}
@@ -166,23 +167,34 @@ func LoadSchema(ctx context.Context, c *gencConf.Config, remoteServiceName strin
 	return nil
 }
 
-func loadRemoteSchema(ctx context.Context, c *gencConf.Config, remoteServiceName string, opts ...graphRPClient.Option) (*ast.Schema, error) {
-	hd := graphRPClient.Header{}
-	for key, value := range c.Endpoint.Headers {
-		hd.Set(key, value)
+func loadRemoteSchema(ctx context.Context, c *gencConf.Config, conn axon.EventStore, opts ...graphRPClient.Option) (*ast.Schema, error) {
+
+	if opts == nil {
+		opts = make([]graphRPClient.Option, 0)
 	}
 
-	rpc, err := graphRPClient.NewClient(remoteServiceName, "introspect", opts...)
+	if c.Endpoint.Headers == nil {
+		c.Endpoint.Headers = make(map[string]string)
+	}
+
+	for key, value := range c.Endpoint.Headers {
+		opts = append(opts, graphRPClient.SetHeader(key, value))
+	}
+
+	opts = append(opts, graphRPClient.SetRemoteGraphQLPath("introspect"))
+
+	rpc, err := graphRPClient.NewClient(conn, opts...)
 	if err != nil {
+		fmt.Print(err, " Erroj")
 		return nil, err
 	}
 
 	var res introspection.Query
-	if err := rpc.Exec(ctx, "Query", "", &res, nil, hd); err != nil {
+	if err := rpc.Exec(ctx, "Query", "", &res, nil, nil); err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 
-	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(fmt.Sprintf("graphrpc://%s.introspect", remoteServiceName), res))
+	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(fmt.Sprintf("graphrpc://%s.introspect", rpc.ServiceName()), res))
 	if err != nil && err.Error() != "" {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}

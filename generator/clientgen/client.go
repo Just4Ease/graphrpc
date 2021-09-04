@@ -93,7 +93,6 @@ func (p Plugin) MutateConfig(cfg *genCfg.Config) error {
 
 	generateClient := p.GenerateConfig.ShouldGenerateClient()
 
-
 	if err := RenderTemplate(cfg,
 		query,
 		mutation,
