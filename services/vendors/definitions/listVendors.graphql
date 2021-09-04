@@ -1,0 +1,19 @@
+# Write your query or mutation here
+query listVendors {
+    listVendors(filters: {
+        cursorId: ""
+        previousPage: false
+        iso2:""
+        stateCode:""
+        limit: 2
+        userId: ""
+    }){
+        count
+        data {
+            id
+            name
+            country
+            address
+        }
+    }
+}

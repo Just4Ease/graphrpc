@@ -92,6 +92,14 @@ func GeneratedMutationsSuffix(suffix string) ClientGeneratorOption {
 }
 
 // RemoteGraphQLPath is an Option to set RemoteServiceGraphEntrypoint used for introspection. example: "/graphql"
+func RemoteServiceName(remoteServiceName string) ClientGeneratorOption {
+	return func(o *ClientGenerator) error {
+		o.RemoteServiceName = remoteServiceName
+		return nil
+	}
+}
+
+// RemoteGraphQLPath is an Option to set RemoteServiceGraphEntrypoint used for introspection. example: "/graphql"
 func RemoteGraphQLPath(path string, headers map[string]string) ClientGeneratorOption {
 	return func(o *ClientGenerator) error {
 		if path[:1] == "/" {
@@ -243,9 +251,7 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 		o(g.cfg.GQLConfig, &plugins)
 	}
 
-	remoteSchemaOpts := make([]client.Option, 0)
-
-	if err := config.LoadSchema(ctx, g.cfg, g.Conn, remoteSchemaOpts...); err != nil {
+	if err := config.LoadSchema(ctx, g.cfg, g.Conn, client.SetRemoteServiceName(g.RemoteServiceName)); err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 

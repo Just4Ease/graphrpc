@@ -4,6 +4,8 @@ github.com/99designs/gqlgen v0.13.0/go.mod h1:NV130r6f4tpRWuAI+zsrSdooO/eWUv+Gyy
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Just4Ease/axon/v2 v2.0.3 h1:NJEz0iSn/cmLtPFP2VB55K8GlXcL8TjjzVDMa80q9eg=
 github.com/Just4Ease/axon/v2 v2.0.3/go.mod h1:hfFT0Ra/tNwUOyd2Cxpp7hKucEPugUmSlxsbDgJH8RI=
+github.com/Just4Ease/axon/v2 v2.0.4 h1:OOuprbyprjkpozmnF8WRkR6mZltdLzDibYXvPltm6HQ=
+github.com/Just4Ease/axon/v2 v2.0.4/go.mod h1:mv0IGrpI9tF0CSFPdYhjkfbUP6Zl8QxwB96doCzjwVc=
 github.com/Yamashou/gqlgenc v0.0.2 h1:TPo0jxcXNz1qo2IHzH7beK4IUBGDky8mu4UF448pa0E=
 github.com/Yamashou/gqlgenc v0.0.2/go.mod h1:af1ziwCm0v6Kp2mKeD4HTbLos41BlnoVpNXDFvUfW/A=
 github.com/agnivade/levenshtein v1.0.1/go.mod h1:CURSv5d9Uaml+FovSIICkLbAUZ9S4RqaHDIsdSBg7lM=

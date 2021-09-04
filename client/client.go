@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/Just4Ease/axon/v2/options"
 	"github.com/Yamashou/gqlgenc/graphqljson"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -16,6 +17,7 @@ import (
 type Options struct {
 	Headers               Header
 	remoteGraphEntrypoint string
+	remoteServiceName     string
 }
 
 type Option func(*Options) error
@@ -44,6 +46,18 @@ func SetRemoteGraphQLPath(path string) Option {
 		}
 
 		o.remoteGraphEntrypoint = path
+		return nil
+	}
+}
+
+// SetRemoteServiceName is used to set the service name of the remote service for this client.
+func SetRemoteServiceName(remoteServiceName string) Option {
+	return func(o *Options) error {
+		if strings.TrimSpace(remoteServiceName) == "" {
+			return errors.New("Remote GraphRPC Service name is required!")
+		}
+
+		o.remoteServiceName = remoteServiceName
 		return nil
 	}
 }
@@ -77,8 +91,12 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	}
 
 	if opts.remoteGraphEntrypoint == "" {
-		log.Print("Using Default GraphRPC Remote Graph Entrypoint Path: '/graphql' ")
+		log.Print("using default GraphRPC remote graph entrypoint path: '/graphql'...")
 		opts.remoteGraphEntrypoint = "graphql"
+	}
+
+	if opts.remoteServiceName == "" {
+		return nil, errors.New("remote graphrpc service name is required!")
 	}
 
 	if conn == nil {
@@ -87,7 +105,7 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 
 	return &Client{
 		axonConn: conn,
-		BaseURL:  fmt.Sprintf("%s.%s", conn.GetServiceName(), opts.remoteGraphEntrypoint),
+		BaseURL:  fmt.Sprintf("%s.%s", opts.remoteServiceName, opts.remoteGraphEntrypoint),
 		opts:     opts,
 		Headers:  opts.Headers,
 	}, nil
@@ -105,22 +123,7 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 		return nil, fmt.Errorf("encode: %w", err)
 	}
 
-	message := messages.NewMessage()
-	message.WithBody(requestBody)
-	message.WithType(messages.RequestMessage)
-	message.WithSubject(c.BaseURL)
-	message.WithSpecVersion("v0.1")
-
-	message.Header = c.Headers
-	if message.Header == nil {
-		message.Header = make(map[string]string)
-	}
-
-	for k, v := range headers {
-		message.Header[k] = v
-	}
-
-	mg, err := c.axonConn.Request(message)
+	mg, err := c.axonConn.Request(c.BaseURL, requestBody, options.SetPubHeaders(headers))
 	if err != nil {
 		return nil, err
 	}
@@ -130,15 +133,6 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 	}
 
 	return mg.Body, nil
-
-	//msg, err := c.nc.RequestWithContext(ctx, c.BaseURL, requestBody)
-	//
-	//
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//return msg.Data, nil
 }
 
 // GqlErrorList is the struct of a standard graphql error response
@@ -190,7 +184,7 @@ func (c *Client) Exec(ctx context.Context, operationName, query string, respData
 }
 
 func (c *Client) ServiceName() string {
-	return c.axonConn.GetServiceName()
+	return c.opts.remoteServiceName
 }
 
 func parseResponse(body []byte, httpCode int, result interface{}) error {

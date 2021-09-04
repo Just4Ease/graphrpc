@@ -129,8 +129,9 @@ func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *S
 	}
 
 	opts := &Options{
-		serverName:      axon.GetServiceName(),
-		graphEntrypoint: "graph",
+		serverName:       axon.GetServiceName(),
+		graphEntrypoint:  "graph",
+		enablePlayground: true,
 	}
 
 	for _, opt := range options {
@@ -168,8 +169,8 @@ func (s *Server) Serve() error {
 \/___________/ \/_/    \_\/\_\___\     /____/_/\/_/       \/_/    \/_/         \/_/    \_\/\/_/       \/____________/  
 
 `
-	color.Cyan.Printf("%s\n", tx)
-	color.Cyan.Printf("Started Service: %s\n", s.axonClient.GetServiceName())
+	color.Yellow.Printf("%s\n", tx)
+	color.Green.Printf("🔥 Service Name          :  %s\n", color.Bold.Sprint(color.Cyan.Sprint(s.axonClient.GetServiceName())))
 
 	var err error
 
@@ -193,12 +194,26 @@ func (s *Server) mountGraphSubscriber() {
 	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint)
 	endpoint := fmt.Sprintf("http://%s/%s", s.graphListener.Addr().String(), s.opts.graphEntrypoint)
 	err := s.axonClient.Reply(root, func(mg *messages.Message) (*messages.Message, error) {
-		r, err := http.Post(endpoint, mg.ContentType.String(), bytes.NewReader(mg.Body))
+
+		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(mg.Body))
 		if err != nil {
 			return nil, err
 		}
 
-		body, err := ioutil.ReadAll(r.Body)
+		for k, v := range mg.Header {
+			req.Header.Set(k, v)
+		}
+		req.Header.Set("Content-Type", mg.ContentType.String())
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		defer closeResBody(res)
+
+		body, err := ioutil.ReadAll(res.Body)
 		if len(body) != 0 {
 			return mg.WithBody(body), nil
 		}
@@ -215,6 +230,12 @@ func (s *Server) mountGraphSubscriber() {
 	<-make(chan bool)
 }
 
+func closeResBody(res *http.Response) {
+	if err := res.Body.Close(); err != nil {
+		log.Errorf("failed to close request body: %v", err)
+	}
+}
+
 func (s *Server) mountGraphHTTPServer() error {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)
@@ -227,7 +248,7 @@ func (s *Server) mountGraphHTTPServer() error {
 	if !s.opts.enablePlayground {
 		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set("content-type", "text/html")
-			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.graphHTTPHandler)
+			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.opts.serverName)
 		})
 	}
 
@@ -239,8 +260,9 @@ func (s *Server) mountGraphHTTPServer() error {
 	router.Handle(graphEndpoint, s.graphHTTPHandler)
 
 	// TODO: Serve https with tls.
-	color.Green.Printf("http(s)://%s/ -> GraphQL playground\n", s.opts.address)
-	color.Green.Printf("http(s)://%s/%s -> GraphRPC HTTP Endpoint\n", s.opts.address, s.opts.graphEntrypoint)
+	color.Green.Printf("🚀 GraphQL Playground    :  http://%s/\n", s.opts.address)
+	color.Green.Printf("🐙 GraphQL HTTP Endpoint :  http://%s/%s\n", s.opts.address, s.opts.graphEntrypoint)
+	color.Green.Printf("🦾 GraphQL Entry Path    :  %s\n", color.OpUnderscore.Sprint(color.Cyan.Sprintf("/%s", s.opts.graphEntrypoint)))
 	return http.Serve(s.graphListener, router)
 }
 
