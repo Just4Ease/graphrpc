@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
@@ -122,7 +123,7 @@ type Server struct {
 	graphListener    net.Listener    // graphql listener
 }
 
-func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *Server {
+func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Server {
 
 	if axon == nil {
 		panic("failed to start server: axon.EventStore must not be nil")
@@ -144,7 +145,7 @@ func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *S
 		mu:               &sync.Mutex{},
 		axonClient:       axon,
 		opts:             opts,
-		graphHTTPHandler: handler,
+		graphHTTPHandler: h,
 	}
 }
 

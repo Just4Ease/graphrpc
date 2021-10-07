@@ -166,7 +166,7 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 		}
 	}
 
-	model := path.Clean(fmt.Sprintf("%s/%s/models.go", c.generateToDirectory, clientGenerator.PackagePath))
+	model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
 	generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, clientGenerator.PackagePath))
 
 	cfgParams := &config.GraphRPCClientConfig{
@@ -255,7 +255,6 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 	}
 
 	if err := config.LoadSchema(ctx, g.cfg, g.Conn, client.SetRemoteServiceName(g.RemoteServiceName)); err != nil {
-		fmt.Print(err, " skem \n")
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
