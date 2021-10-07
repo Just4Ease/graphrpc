@@ -32,9 +32,12 @@ Request/Reply, Pub&Sub )
 
 ## How to use
 
-
 ```shell script
 # To generate server code
+# It is advised to add this command to a makefile or run the tools.go once 
+printf '// +build tools\npackage tools\nimport _ "github.com/Just4Ease/graphrpc/generator/cmd"' | gofmt > tools.go
+go mod tidy
 
+# To actually generate resolvers and server entrypoint file.
 go run github.com/Just4Ease/graphrpc/generator/cmd --filename server.go
 ```
