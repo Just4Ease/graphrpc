@@ -25,9 +25,8 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
 	"io/ioutil"
-	goLog "log"
+	"log"
 	"net"
 	"net/http"
 
@@ -226,14 +225,14 @@ func (s *Server) mountGraphSubscriber() {
 		return nil, errors.New("internal server error")
 	})
 	if err != nil {
-		goLog.Fatal(err)
+		log.Fatal(err)
 	}
 	<-make(chan bool)
 }
 
 func closeResBody(res *http.Response) {
 	if err := res.Body.Close(); err != nil {
-		log.Errorf("failed to close request body: %v", err)
+		log.Printf("failed to close request body: %v", err)
 	}
 }
 

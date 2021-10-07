@@ -1,6 +1,5 @@
 package testdata
 
-
 import a "fmt"
 import "time"
 
