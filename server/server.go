@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
@@ -24,9 +25,8 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
 	"io/ioutil"
-	goLog "log"
+	"log"
 	"net"
 	"net/http"
 
@@ -122,7 +122,7 @@ type Server struct {
 	graphListener    net.Listener    // graphql listener
 }
 
-func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *Server {
+func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Server {
 
 	if axon == nil {
 		panic("failed to start server: axon.EventStore must not be nil")
@@ -144,7 +144,7 @@ func NewServer(axon axon.EventStore, handler http.Handler, options ...Option) *S
 		mu:               &sync.Mutex{},
 		axonClient:       axon,
 		opts:             opts,
-		graphHTTPHandler: handler,
+		graphHTTPHandler: h,
 	}
 }
 
@@ -225,14 +225,14 @@ func (s *Server) mountGraphSubscriber() {
 		return nil, errors.New("internal server error")
 	})
 	if err != nil {
-		goLog.Fatal(err)
+		log.Fatal(err)
 	}
 	<-make(chan bool)
 }
 
 func closeResBody(res *http.Response) {
 	if err := res.Body.Close(); err != nil {
-		log.Errorf("failed to close request body: %v", err)
+		log.Printf("failed to close request body: %v", err)
 	}
 }
 
