@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/99designs/gqlgen v0.14.0
 	github.com/Just4Ease/axon/v2 v2.0.5
-	github.com/Yamashou/gqlgenc v0.0.2
+	github.com/Yamashou/gqlgenc v0.0.2-update
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/gookit/color v1.4.2
 	github.com/nats-io/nats-server/v2 v2.6.1
