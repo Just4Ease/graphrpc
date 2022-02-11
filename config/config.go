@@ -122,7 +122,7 @@ func LoadClientGeneratorCfg(cfg *GraphRPCClientConfig) (*gencConf.Config, error)
 		Model:  cfg.Model,
 		Models: models,
 		// TODO: gqlgen must be set exec but client not used
-		Exec:       config.PackageConfig{Filename: "generated.go"},
+		Exec:       config.ExecConfig{Filename: "generated.go"},
 		Directives: map[string]config.DirectiveConfig{},
 		Sources:    sources,
 	}
