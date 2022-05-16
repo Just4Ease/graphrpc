@@ -3,7 +3,7 @@ package rewrite
 import (
 	"bytes"
 	"fmt"
-	"github.com/Just4Ease/graphrpc/internal/code"
+	"github.com/borderlesshq/graphrpc/internal/code"
 	"go/ast"
 	"go/token"
 	"io/ioutil"

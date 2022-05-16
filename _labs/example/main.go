@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/Just4Ease/axon/v2/options"
 	"github.com/Just4Ease/axon/v2/systems/jetstream"
-	"github.com/Just4Ease/graphrpc/client"
-	vendorService "github.com/Just4Ease/graphrpc/services/vendors"
+	"github.com/borderlesshq/graphrpc/client"
+	vendorService "github.com/borderlesshq/graphrpc/services/vendors"
 	"log"
 )
 

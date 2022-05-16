@@ -12,9 +12,9 @@
 
 
 	{{ reserveImport "github.com/Yamashou/gqlgenc/graphqljson" }}
-	{{ reserveImport "github.com/Just4Ease/graphrpc" }}
+	{{ reserveImport "github.com/borderlesshq/graphrpc" }}
 	{{ reserveImport "github.com/Just4Ease/axon/v2" }}
-	{{ reserveImport "github.com/Just4Ease/graphrpc/client" }}
+	{{ reserveImport "github.com/borderlesshq/graphrpc/client" }}
 
 	type ServiceClient struct {
 		client *client.Client

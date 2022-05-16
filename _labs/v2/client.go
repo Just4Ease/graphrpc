@@ -2,11 +2,11 @@ package clientgenv2
 
 import (
 	"fmt"
-	"github.com/Yamashou/gqlgenc/clientgenv2"
-	"github.com/Yamashou/gqlgenc/config"
+	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/clientgenv2"
+	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/config"
 
-	genCfg "github.com/99designs/gqlgen/codegen/config"
-	"github.com/99designs/gqlgen/plugin"
+	genCfg "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin"
 )
 
 var _ plugin.ConfigMutator = &Plugin{}

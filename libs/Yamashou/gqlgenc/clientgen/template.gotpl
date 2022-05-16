@@ -1,0 +1,97 @@
+{{- if .GenerateClient }}
+	{{ reserveImport "bytes" }}
+	{{ reserveImport "context" }}
+	{{ reserveImport "encoding/json" }}
+	{{ reserveImport "fmt" }}
+	{{ reserveImport "io" }}
+	{{ reserveImport "io/ioutil" }}
+	{{ reserveImport "log" }}
+	{{ reserveImport "net/http" }}
+	{{ reserveImport "net/url" }}
+	{{ reserveImport "path" }}
+	{{ reserveImport "time" }}
+
+
+	{{ reserveImport "github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/graphqljson" }}
+	{{ reserveImport "github.com/borderlesshq/graphrpc" }}
+	{{ reserveImport "github.com/Just4Ease/axon/v2" }}
+	{{ reserveImport "github.com/borderlesshq/graphrpc/client" }}
+
+	{{- if .ClientInterfaceName }}
+    	type {{ .ClientInterfaceName }} interface {
+    		{{- range $model := .Operation }}
+    			{{ $model.Name | go }} (ctx context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, httpRequestOptions ...client.HTTPRequestOption) (*{{ $model.ResponseStructName | go }}, error)
+    		{{- end }}
+    	}
+    {{- end }}
+
+	type ServiceClient struct {
+		client *client.Client
+	}
+
+    {{- if .ClientInterfaceName }}
+	func NewClient(conn axon.EventStore, options ...graphrpc.ClientOption) ({{ .ClientInterfaceName }}, error) {
+    {{- else }}
+    func NewClient(conn axon.EventStore, options ...graphrpc.ClientOption) (*ServiceClient, error) {
+    {{- end }}
+
+    	client, err := graphrpc.NewClient(conn, options...)
+        if err != nil {
+            return nil, err
+        }
+         return &ServiceClient{client: client}, nil
+     }
+
+
+     {{- if .ClientInterfaceName }}
+    func NewServiceClient(conn axon.EventStore, options ...graphrpc.ClientOption) {{ .ClientInterfaceName }} {
+    {{- else }}
+    func NewServiceClient(conn axon.EventStore, options ...graphrpc.ClientOption) *ServiceClient {
+    {{- end }}
+
+        client, err := graphrpc.NewClient(conn, options...)
+        if err != nil {
+             log.Fatal(err)
+        }
+
+        return &ServiceClient{client: client}
+    }
+
+{{- end }}
+
+type {{ .Query.Name | go }} {{ .Query.Type | ref }}
+
+{{- if .Mutation }}
+	type {{ .Mutation.Name | go }} {{ .Mutation.Type | ref }}
+{{- end }}
+
+{{- range $name, $element := .Fragment }}
+	type  {{ .Name | go  }} {{ .Type | ref }}
+{{- end }}
+
+{{- range $name, $element := .OperationResponse }}
+    type  {{ .Name | go  }} {{ .Type | ref }}
+{{- end }}
+
+
+
+{{- range $model := .Operation}}
+	const {{ $model.Name|go }}Document = `{{ $model.Operation }}`
+
+	{{- if $.GenerateClient }}
+		func (c *ServiceClient) {{ $model.Name | go }} (ctx context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, headers client.Header) (*{{ $model.ResponseStructName | go }}, error) {
+			vars := map[string]interface{}{
+			{{- range $args := .VariableDefinitions}}
+				"{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
+			{{- end }}
+			}
+
+			var res {{ $model.ResponseStructName | go }}
+			if err := c.client.Exec(ctx, "{{ $model.Name }}", {{ $model.Name|go }}Document, &res, vars, headers); err != nil {
+				return nil, err
+			}
+
+			return &res, nil
+		}
+	{{- end}}
+{{- end}}

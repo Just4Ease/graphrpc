@@ -15,7 +15,7 @@ func TestImportPathForDir(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, "github.com/Just4Ease/graphrpc/internal/code", ImportPathForDir(wd))
+	assert.Equal(t, "github.com/borderlesshq/graphrpc/internal/code", ImportPathForDir(wd))
 
 	// out of module
 	assert.Equal(t, "", ImportPathForDir(filepath.Join(wd, "..", "..", "..")))

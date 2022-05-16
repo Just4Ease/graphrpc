@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Just4Ease/axon/v2"
-	graphRPClient "github.com/Just4Ease/graphrpc/client"
+	graphRPClient "github.com/borderlesshq/graphrpc/client"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/config"
-	//"github.com/Just4Ease/graphrpc/client"
+	//"github.com/borderlesshq/graphrpc/client"
 	gencConf "github.com/Yamashou/gqlgenc/config"
 	"github.com/Yamashou/gqlgenc/introspection"
 	"github.com/vektah/gqlparser/v2"

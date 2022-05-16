@@ -11,14 +11,14 @@ Request/Reply, Pub&Sub )
 - Programming language agnostic
 - One entry point
 - Custom headers on query || mutations
-- Client code generation ( thanks to https://github.com/Yamashou/gqlgenc 🚀 )
+- Client code generation ( thanks to https://github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc 🚀 )
 - Nats.io integration
-- Server CodeGen ( using https://github.com/99designs/gqlgen )
+- Server CodeGen ( using https://github.com/borderlesshq/graphrpc/libs/99designs/gqlgen )
 
 ## Appreciation & Inspirations
 
-- 99designs - https://github.com/99designs/gqlgen
-- Yamashou - https://github.com/Yamashou/gqlgenc
+- 99designs - https://github.com/borderlesshq/graphrpc/libs/99designs/gqlgen
+- Yamashou - https://github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc
 - NATS.io - https://nats.io
 - GraphQL - https://graphql.org
 - gRPC - https://grpc.io
@@ -35,9 +35,9 @@ Request/Reply, Pub&Sub )
 ```shell script
 # To generate server code
 # It is advised to add this command to a makefile or run the tools.go once 
-printf '// +build tools\npackage tools\nimport _ "github.com/Just4Ease/graphrpc/generator/cmd"' | gofmt > tools.go
+printf '// +build tools\npackage tools\nimport _ "github.com/borderlesshq/graphrpc/generator/cmd"' | gofmt > tools.go
 go mod tidy
 
 # To actually generate resolvers and server entrypoint file.
-go run github.com/Just4Ease/graphrpc/generator/cmd --filename server.go
+go run github.com/borderlesshq/graphrpc/generator/cmd --filename server.go
 ```

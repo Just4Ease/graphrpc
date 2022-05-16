@@ -1,12 +1,12 @@
 
 {{ reserveImport "os" }}
-{{ reserveImport "github.com/99designs/gqlgen/graphql/handler" }}
+{{ reserveImport "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/handler" }}
 {{ reserveImport "fmt" }}
 {{ reserveImport "github.com/Just4Ease/axon/v2" }}
 {{ reserveImport "github.com/Just4Ease/axon/v2/options" }}
 {{ reserveImport "github.com/Just4Ease/axon/v2/systems/jetstream" }}
-{{ reserveImport "github.com/Just4Ease/graphrpc" }}
-{{ reserveImport "github.com/Just4Ease/graphrpc/server" }}
+{{ reserveImport "github.com/borderlesshq/graphrpc" }}
+{{ reserveImport "github.com/borderlesshq/graphrpc/server" }}
 {{ reserveImport "github.com/sirupsen/logrus" }}
 
 
@@ -26,7 +26,7 @@ func main() {
     	Address:             "0.0.0.0:4222",
     	AuthenticationToken: "",
     }); err != nil {
-    	goLog.Fatal(err)
+    	logrus.Fatalf("failed to initialize nats/jetstream connection. error: %s", err)
     }
 
 
@@ -37,6 +37,6 @@ func main() {
     	server.SetGraphHTTPServerAddress(address),
     	server.SetGraphQLPath("/graphql"),
     ).Serve(); err != nil {
-    	logrus.Fatalf("Could not start server on %s. Got error: %s", address, err.Error())
+    	logrus.Fatalf("could not start server on %s. Got error: %s", address, err)
     }
 }

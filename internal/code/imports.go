@@ -93,7 +93,8 @@ func ImportPathForDir(dir string) (res string) {
 
 	for _, gopath := range gopaths {
 		if len(gopath) < len(dir) && strings.EqualFold(gopath, dir[0:len(gopath)]) {
-			return dir[len(gopath)+1:]
+			pt := dir[len(gopath)+1:]
+			return pt
 		}
 	}
 

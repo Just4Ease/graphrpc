@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/99designs/gqlgen/graphql"
-	"github.com/Just4Ease/graphrpc/generator"
+	"github.com/borderlesshq/graphrpc/generator"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
 	"github.com/gookit/color"
 	"github.com/urfave/cli/v2"
 	"io/ioutil"
@@ -41,7 +41,7 @@ This is a library for quickly creating strictly typed graphql servers in golang.
 See https://gqlgen.com/ for a getting started guide.
 
 Note, this library will scaffold a GraphRPC Server for you.
-See https://github.com/Just4Ease/graphrpc 🦾 🐙 🐉 🔦 🕸
+See https://github.com/borderlesshq/graphrpc 🦾 🐙 🐉 🔦 🕸
 `
 	app.HideVersion = true
 	app.Flags = genCmd.Flags

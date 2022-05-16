@@ -3,16 +3,9 @@
 package imports
 
 import (
-	"bytes"
-	"github.com/Just4Ease/graphrpc/internal/code"
+	"github.com/borderlesshq/graphrpc/internal/code"
 	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
 	"strings"
-
-	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/imports"
 )
 
 type visitFn func(node ast.Node)
@@ -20,29 +13,6 @@ type visitFn func(node ast.Node)
 func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 	fn(node)
 	return fn
-}
-
-// Prune removes any unused imports
-func Prune(filename string, src []byte, packages *code.Packages) ([]byte, error) {
-	fset := token.NewFileSet()
-
-	file, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.AllErrors)
-	if err != nil {
-		return nil, err
-	}
-
-	unused := getUnusedImports(file, packages)
-	for ipath, name := range unused {
-		astutil.DeleteNamedImport(fset, file, name, ipath)
-	}
-	printConfig := &printer.Config{Mode: printer.TabIndent, Tabwidth: 8}
-
-	var buf bytes.Buffer
-	if err := printConfig.Fprint(&buf, fset, file); err != nil {
-		return nil, err
-	}
-
-	return imports.Process(filename, buf.Bytes(), &imports.Options{FormatOnly: true, Comments: true, TabIndent: true, TabWidth: 8})
 }
 
 func getUnusedImports(file ast.Node, packages *code.Packages) map[string]string {

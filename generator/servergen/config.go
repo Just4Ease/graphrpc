@@ -2,6 +2,7 @@ package servergen
 
 import (
 	"bytes"
+	genCFG "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
 	"text/template"
 )
 
@@ -53,7 +54,7 @@ autobind:
 models:
   Int:
     model:
-      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int64
 `))
 
 func InitConfig(pkgName string) ([]byte, error) {
@@ -63,4 +64,10 @@ func InitConfig(pkgName string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// LoadConfigFromDefaultLocations looks for a config file in the current directory, and all parent directories
+// walking up the tree. The closest config file will be returned.
+func LoadConfigFromDefaultLocations() (*genCFG.Config, error) {
+	return genCFG.LoadConfigFromDefaultLocations()
 }

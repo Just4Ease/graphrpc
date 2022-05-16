@@ -1,4 +1,4 @@
-// Copyright 2012-2019 The NATS Authors
+// Copyright 2012-2019 The GraphRPC Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,10 +17,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/handler"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
@@ -29,7 +29,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-
 	"strings"
 	"sync"
 )
@@ -49,7 +48,7 @@ type Options struct {
 
 type Option func(*Options) error
 
-// PreRunHook
+// PreRunHook is used to execute code blocks before the server starts.
 func PreRunHook(f preRunHook) Option {
 	return func(o *Options) error {
 		o.preRunHook = f
@@ -57,7 +56,7 @@ func PreRunHook(f preRunHook) Option {
 	}
 }
 
-// PostRunHook
+// PostRunHook is used to execute code blocks after the messaging system is connected.
 func PostRunHook(f postRunHook) Option {
 	return func(o *Options) error {
 		o.postRunHook = f
@@ -65,7 +64,7 @@ func PostRunHook(f postRunHook) Option {
 	}
 }
 
-// UseMiddlewares
+// UseMiddlewares is used to apply middlewares. Regular HTTP middlewares are allowed
 func UseMiddlewares(middlewares ...func(http.Handler) http.Handler) Option {
 	return func(o *Options) error {
 		if middlewares == nil {
@@ -77,7 +76,7 @@ func UseMiddlewares(middlewares ...func(http.Handler) http.Handler) Option {
 	}
 }
 
-// SetGraphQLPath
+// SetGraphQLPath is used to define the endpoint for your GraphRPC Server
 func SetGraphQLPath(path string) Option {
 	return func(o *Options) error {
 		if strings.TrimSpace(path) == empty {
@@ -94,7 +93,10 @@ func SetGraphQLPath(path string) Option {
 	}
 }
 
-// SetGraphQLPath
+// SetGraphHTTPServerAddress is used to set the base http address for the graph http server.
+// Note when the GraphRPC client connects, it doesn't pass through http, it passes through nats events over axon library.
+// See https://github.com/Just4Ease/axon
+// See https://nats.io
 func SetGraphHTTPServerAddress(address string) Option {
 	return func(o *Options) error {
 		if strings.TrimSpace(address) == empty {
@@ -106,7 +108,7 @@ func SetGraphHTTPServerAddress(address string) Option {
 	}
 }
 
-// DisableGraphPlayground
+// DisableGraphPlayground is used to disable the graphql playground.
 func DisableGraphPlayground() Option {
 	return func(o *Options) error {
 		o.enablePlayground = false
@@ -115,11 +117,12 @@ func DisableGraphPlayground() Option {
 }
 
 type Server struct {
-	mu               *sync.Mutex
 	axonClient       axon.EventStore // AxonClient
 	opts             *Options        // graph & nats options
 	graphHTTPHandler http.Handler    // graphql/rest handler
 	graphListener    net.Listener    // graphql listener
+	router           *chi.Mux        // chi router.
+	mu               sync.Mutex
 }
 
 func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Server {
@@ -141,7 +144,7 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 	}
 
 	return &Server{
-		mu:               &sync.Mutex{},
+		mu:               sync.Mutex{},
 		axonClient:       axon,
 		opts:             opts,
 		graphHTTPHandler: h,
@@ -190,6 +193,67 @@ func (s *Server) Serve() error {
 	return s.mountGraphHTTPServer()
 }
 
+func closeResBody(res *http.Response) {
+	if err := res.Body.Close(); err != nil {
+		log.Printf("failed to close request body: %v", err)
+	}
+}
+
+func (s *Server) mountGraphHTTPServer() error {
+	router := chi.NewRouter()
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	if s.opts.middlewares != nil && len(s.opts.middlewares) != 0 {
+		router.Use(s.opts.middlewares...)
+	}
+
+	graphEndpoint := fmt.Sprintf("/%s", s.opts.graphEntrypoint)
+	if s.opts.enablePlayground {
+		router.Handle("/", playground.Handler("GraphQL playground", graphEndpoint))
+	} else {
+		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("content-type", "text/html")
+			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.opts.serverName)
+		})
+	}
+
+	router.Handle(graphEndpoint, s.graphHTTPHandler)
+
+	// TODO: Serve https with tls.
+	color.Green.Printf("🚀 GraphQL Playground    :  http://%s/\n", s.opts.address)
+	color.Green.Printf("🐙 GraphQL HTTP Endpoint :  http://%s/%s\n", s.opts.address, s.opts.graphEntrypoint)
+	color.Green.Printf("🦾 GraphQL Entry Path    :  %s\n", color.OpUnderscore.Sprint(color.Cyan.Sprintf("/%s", s.opts.graphEntrypoint)))
+
+	// For direct use by the eventStore for calls over events.
+	// This is to override the need to open a local connection to the local http server.
+	// See subscribers.go for more understanding.
+	s.router = router
+	return http.Serve(s.graphListener, router)
+}
+
+func (s *Server) WaitForShutdown() {
+	//s.axonClient.Close()
+	_ = s.graphListener.Close()
+}
+
+const (
+	empty = ""
+	tab   = "\t"
+)
+
+func PrettyJson(data interface{}) {
+	buffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(buffer)
+	encoder.SetIndent(empty, tab)
+
+	err := encoder.Encode(data)
+	if err != nil {
+		return
+	}
+	fmt.Print(buffer.String())
+}
+
 func (s *Server) mountGraphSubscriber() {
 	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint)
 	endpoint := fmt.Sprintf("http://%s/%s", s.graphListener.Addr().String(), s.opts.graphEntrypoint)
@@ -228,62 +292,4 @@ func (s *Server) mountGraphSubscriber() {
 		log.Fatal(err)
 	}
 	<-make(chan bool)
-}
-
-func closeResBody(res *http.Response) {
-	if err := res.Body.Close(); err != nil {
-		log.Printf("failed to close request body: %v", err)
-	}
-}
-
-func (s *Server) mountGraphHTTPServer() error {
-	router := chi.NewRouter()
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Logger)
-	if s.opts.middlewares != nil && len(s.opts.middlewares) != 0 {
-		router.Use(s.opts.middlewares...)
-	}
-
-	if !s.opts.enablePlayground {
-		router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
-			writer.Header().Set("content-type", "text/html")
-			_, _ = fmt.Fprintf(writer, "<h1 align='center'>%s is running... Please contact administrator for more details</h1>", s.opts.serverName)
-		})
-	}
-
-	graphEndpoint := fmt.Sprintf("/%s", s.opts.graphEntrypoint)
-	if s.opts.enablePlayground {
-		router.Handle("/", playground.Handler("GraphQL playground", graphEndpoint))
-	}
-
-	router.Handle(graphEndpoint, s.graphHTTPHandler)
-
-	// TODO: Serve https with tls.
-	color.Green.Printf("🚀 GraphQL Playground    :  http://%s/\n", s.opts.address)
-	color.Green.Printf("🐙 GraphQL HTTP Endpoint :  http://%s/%s\n", s.opts.address, s.opts.graphEntrypoint)
-	color.Green.Printf("🦾 GraphQL Entry Path    :  %s\n", color.OpUnderscore.Sprint(color.Cyan.Sprintf("/%s", s.opts.graphEntrypoint)))
-	return http.Serve(s.graphListener, router)
-}
-
-func (s *Server) WaitForShutdown() {
-	//s.axonClient.Close()
-	_ = s.graphListener.Close()
-}
-
-const (
-	empty = ""
-	tab   = "\t"
-)
-
-func PrettyJson(data interface{}) {
-	buffer := new(bytes.Buffer)
-	encoder := json.NewEncoder(buffer)
-	encoder.SetIndent(empty, tab)
-
-	err := encoder.Encode(data)
-	if err != nil {
-		return
-	}
-	fmt.Print(buffer.String())
 }

@@ -3,15 +3,14 @@ package generator
 import (
 	"context"
 	"fmt"
-	"github.com/99designs/gqlgen/api"
-	genCfg "github.com/99designs/gqlgen/codegen/config"
-	"github.com/99designs/gqlgen/plugin"
-	"github.com/99designs/gqlgen/plugin/modelgen"
 	"github.com/Just4Ease/axon/v2"
-	"github.com/Just4Ease/graphrpc/client"
-	"github.com/Just4Ease/graphrpc/config"
-	"github.com/Just4Ease/graphrpc/generator/clientgen"
-	gencConf "github.com/Yamashou/gqlgenc/config"
+	"github.com/borderlesshq/graphrpc/client"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/api"
+	genCfg "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
+	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/clientgen"
+	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/config"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"os"
@@ -32,7 +31,7 @@ type ClientGenerator struct {
 	MutationParamsSuffix         string
 	Headers                      map[string]string
 	ClientV2                     bool
-	cfg                          *gencConf.Config
+	cfg                          *config.Config
 	Conn                         axon.EventStore
 }
 
@@ -92,7 +91,7 @@ func GeneratedMutationsSuffix(suffix string) ClientGeneratorOption {
 	}
 }
 
-// RemoteGraphQLPath is an Option to set RemoteServiceGraphEntrypoint used for introspection. example: "/graphql"
+// RemoteServiceName is used to mount the . example: "/graphql"
 func RemoteServiceName(remoteServiceName string) ClientGeneratorOption {
 	return func(o *ClientGenerator) error {
 		o.RemoteServiceName = remoteServiceName
@@ -169,7 +168,7 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 	model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
 	generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, clientGenerator.PackagePath))
 
-	cfgParams := &config.GraphRPCClientConfig{
+	cfgParams := &config.Config{
 		//SchemaFilename: schema,
 		Model: genCfg.PackageConfig{
 			Filename: model,
@@ -180,7 +179,7 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 			Package:  clientGenerator.PackageName,
 		},
 		//Models: nil,
-		Endpoint: &gencConf.EndPointConfig{
+		Endpoint: &config.EndPointConfig{
 			URL:     clientGenerator.RemoteServiceGraphEntrypoint,
 			Headers: clientGenerator.Headers,
 		},
@@ -189,12 +188,12 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 	}
 
 	if clientGenerator.ClientV2 {
-		cfgParams.Generate = &gencConf.GenerateConfig{
-			Prefix: &gencConf.NamingConfig{
+		cfgParams.Generate = &config.GenerateConfig{
+			Prefix: &config.NamingConfig{
 				Query:    clientGenerator.QueryParamsPrefix,
 				Mutation: clientGenerator.MutationParamsPrefix,
 			},
-			Suffix: &gencConf.NamingConfig{
+			Suffix: &config.NamingConfig{
 				Query:    clientGenerator.QueryParamsSuffix,
 				Mutation: clientGenerator.MutationParamsSuffix,
 			},
@@ -218,7 +217,7 @@ func (c *Clients) Generate() {
 	for _, g := range c.list {
 		clientGen := api.AddPlugin(clientgen.New(g.cfg.Query, g.cfg.Client, g.cfg.Generate, g.RemoteServiceName, g.RemoteServiceGraphEntrypoint))
 		if err := generateClientCode(ctx, g, clientGen); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "%+v", err.Error())
+			_, _ = fmt.Fprintf(os.Stderr, "[%s] %+v", g.RemoteServiceName, err.Error())
 			os.Exit(4)
 		}
 
@@ -227,11 +226,15 @@ func (c *Clients) Generate() {
 }
 
 // mutateHook adds the "omitempty" option to nilable fields.
-// For more info see https://github.com/99designs/gqlgen/blob/master/docs/content/recipes/modelgen-hook.md
+// For more info see https://github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/blob/master/docs/content/recipes/modelgen-hook.md
 func clientMutateHook(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	for _, model := range b.Models {
 		for _, field := range model.Fields {
 			field.Tag = `json:"` + field.Name
+			if genCfg.IsNilable(field.Type) {
+				field.Tag += ",omitempty"
+			}
+			field.Tag += `msgpack:` + field.Name
 			if genCfg.IsNilable(field.Type) {
 				field.Tag += ",omitempty"
 			}

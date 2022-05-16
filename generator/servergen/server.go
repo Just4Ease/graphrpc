@@ -2,9 +2,9 @@ package servergen
 
 import (
 	"fmt"
-	"github.com/99designs/gqlgen/codegen"
-	"github.com/99designs/gqlgen/codegen/templates"
-	"github.com/99designs/gqlgen/plugin"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/templates"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"io/ioutil"
