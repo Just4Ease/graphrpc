@@ -23,13 +23,13 @@ type (
 	RootFieldMiddleware func(ctx context.Context, next RootResolver) Marshaler
 
 	RawParams struct {
-		Query         string                 `json:"query"`
-		OperationName string                 `json:"operationName"`
-		Variables     map[string]interface{} `json:"variables"`
-		Extensions    map[string]interface{} `json:"extensions"`
-		Headers       http.Header            `json:"headers"`
+		Query         string                 `json:"query" msgpack:"query"`
+		OperationName string                 `json:"operationName" msgpack:"operationName"`
+		Variables     map[string]interface{} `json:"variables" msgpack:"variables"`
+		Extensions    map[string]interface{} `json:"extensions" msgpack:"extensions"`
+		Headers       http.Header            `json:"headers" msgpack:"headers"`
 
-		ReadTime TraceTiming `json:"-"`
+		ReadTime TraceTiming `json:"-" msgpack:"-"`
 	}
 
 	GraphExecutor interface {

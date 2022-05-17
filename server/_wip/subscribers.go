@@ -192,24 +192,6 @@ func (r *RPCResponseWriter) writeHeader(p []byte) {
 	te := header.Get("Transfer-Encoding")
 	hasTE := te != ""
 
-	// If the handler is done but never sent a Content-Length
-	// response header and this is our first (and last) write, set
-	// it, even to zero. This helps HTTP/1.0 clients keep their
-	// "keep-alive" connections alive.
-	// Exceptions: 304/204/1xx responses never get Content-Length, and if
-	// it was a HEAD request, we don't know the difference between
-	// 0 actual bytes and 0 bytes because the handler noticed it
-	// was a HEAD request and chose not to write anything. So for
-	// HEAD, the handler should either write the Content-Length or
-	// write non-zero bytes. If it's actually 0 bytes and the
-	// handler never looked at the Request.Method, we just don't
-	// send a Content-Length header.
-	// Further, we don't send an automatic Content-Length if they
-	// set a Transfer-Encoding, because they're generally incompatible.
-	if r.handlerDone.isSet() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
-		r.contentLength = int64(len(p))
-		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
-	}
 
 	// If this was an HTTP/1.0 request with keep-alive and we sent a
 	// Content-Length back, we can make this a keep-alive response ...

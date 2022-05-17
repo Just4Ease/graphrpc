@@ -9,7 +9,7 @@ import (
 
 // POST implements the POST side of the default HTTP transport
 // defined in https://github.com/APIs-guru/graphql-over-http#post
-type POST struct{}
+type POST struct{ applyMsgpackEncoder bool }
 
 var _ graphql.Transport = POST{}
 
@@ -23,17 +23,25 @@ func (h POST) Supports(r *http.Request) bool {
 		return false
 	}
 
-	return r.Method == "POST" && mediaType == "application/json"
+	if mediaType == "application/msgpack" {
+		h.applyMsgpackEncoder = true
+	}
+
+	return r.Method == "POST"
 }
 
 func (h POST) Do(w http.ResponseWriter, r *http.Request, exec graphql.GraphExecutor) {
-	w.Header().Set("Content-Type", "application/json")
+	if h.applyMsgpackEncoder {
+		w.Header().Set("Content-Type", "application/msgpack")
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+	}
 
 	var params *graphql.RawParams
 	start := graphql.Now()
-	if err := jsonDecode(r.Body, &params); err != nil {
+	if err := decode(h.applyMsgpackEncoder, r.Body, &params); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		writeJsonErrorf(w, "json body could not be decoded: "+err.Error())
+		writeErrorf(h.applyMsgpackEncoder, w, "body could not be decoded: "+err.Error())
 		return
 	}
 

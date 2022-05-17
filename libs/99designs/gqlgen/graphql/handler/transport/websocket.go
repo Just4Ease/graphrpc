@@ -60,7 +60,7 @@ func (t Websocket) Do(w http.ResponseWriter, r *http.Request, exec graphql.Graph
 	ws, err := t.Upgrader.Upgrade(w, r, http.Header{})
 	if err != nil {
 		log.Printf("unable to upgrade %T to websocket %s: ", w, err.Error())
-		SendErrorf(w, http.StatusBadRequest, "unable to upgrade")
+		SendErrorf(false, w, http.StatusBadRequest, "unable to upgrade")
 		return
 	}
 

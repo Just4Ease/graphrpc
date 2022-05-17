@@ -37,13 +37,14 @@ type preRunHook func() error
 type postRunHook func(eventStore axon.EventStore) error
 
 type Options struct {
-	serverName       string // default: GraphRPC
-	graphEntrypoint  string // graph entrypoint
-	enablePlayground bool   // disable playground
-	preRunHook       preRunHook
-	postRunHook      postRunHook
-	middlewares      []func(http.Handler) http.Handler
-	address          string // http server address
+	serverName           string // default: GraphRPC
+	graphEntrypoint      string // graph entrypoint
+	enablePlayground     bool   // disable playground
+	preRunHook           preRunHook
+	postRunHook          postRunHook
+	middlewares          []func(http.Handler) http.Handler
+	address              string // http server address
+	applyMsgpackEncoding bool
 }
 
 type Option func(*Options) error
@@ -116,13 +117,22 @@ func DisableGraphPlayground() Option {
 	}
 }
 
+// ApplyMsgpackEncoder is used to apply msgpack as the encoder.
+func ApplyMsgpackEncoder() Option {
+	return func(o *Options) error {
+		o.applyMsgpackEncoding = true
+		return nil
+	}
+}
+
 type Server struct {
-	axonClient       axon.EventStore // AxonClient
-	opts             *Options        // graph & nats options
-	graphHTTPHandler http.Handler    // graphql/rest handler
-	graphListener    net.Listener    // graphql listener
-	router           *chi.Mux        // chi router.
-	mu               sync.Mutex
+	axonClient           axon.EventStore // AxonClient
+	opts                 *Options        // graph & nats options
+	graphHTTPHandler     http.Handler    // graphql/rest handler
+	graphListener        net.Listener    // graphql listener
+	router               *chi.Mux        // chi router.
+	mu                   sync.Mutex
+	applyMsgpackEncoding bool
 }
 
 func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Server {
@@ -132,9 +142,10 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 	}
 
 	opts := &Options{
-		serverName:       axon.GetServiceName(),
-		graphEntrypoint:  "graph",
-		enablePlayground: true,
+		serverName:           axon.GetServiceName(),
+		graphEntrypoint:      "graph",
+		enablePlayground:     true,
+		applyMsgpackEncoding: false,
 	}
 
 	for _, opt := range options {
@@ -144,10 +155,11 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 	}
 
 	return &Server{
-		mu:               sync.Mutex{},
-		axonClient:       axon,
-		opts:             opts,
-		graphHTTPHandler: h,
+		mu:                   sync.Mutex{},
+		axonClient:           axon,
+		opts:                 opts,
+		graphHTTPHandler:     h,
+		applyMsgpackEncoding: opts.applyMsgpackEncoding,
 	}
 }
 
@@ -277,6 +289,11 @@ func (s *Server) mountGraphSubscriber() {
 
 		defer closeResBody(res)
 
+		//wr := &RPCResponseWriter{req: req, header: req.Header}
+		//go s.graphHTTPHandler.ServeHTTP(wr, wr.req)
+		//
+		//<-wr.Done
+
 		body, err := ioutil.ReadAll(res.Body)
 		if len(body) != 0 {
 			return mg.WithBody(body), nil
@@ -285,7 +302,6 @@ func (s *Server) mountGraphSubscriber() {
 		if err != nil {
 			return nil, err
 		}
-
 		return nil, errors.New("internal server error")
 	})
 	if err != nil {
@@ -293,3 +309,7 @@ func (s *Server) mountGraphSubscriber() {
 	}
 	<-make(chan bool)
 }
+
+//func (s *Server) ServeOnEvents() {
+//
+//}

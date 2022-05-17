@@ -11,7 +11,6 @@ import (
 	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
-	"github.com/vmihailenco/msgpack/v5"
 	"log"
 	"strings"
 )
@@ -134,8 +133,8 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 	var requestBody []byte
 	var err error
 	if c.applyMsgPackEncoder {
-		requestBody, err = msgpack.Marshal(r)
-		//headers["Content-Type"]
+		requestBody, err = utils.Marshal(r)
+		headers["Content-Type"] = "application/msgpack"
 	} else {
 		requestBody, err = json.Marshal(r)
 	}
@@ -189,7 +188,7 @@ func (er *ErrorResponse) Error() string {
 	var content []byte
 	var err error
 	if er.applyMsgPackEncoder {
-		content, err = msgpack.Marshal(er)
+		content, err = utils.Marshal(er)
 	} else {
 		content, err = json.Marshal(er)
 	}
@@ -256,7 +255,7 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 	resp := response{}
 
 	if c.applyMsgPackEncoder {
-		if err := utils.UnPack(data, &resp); err != nil {
+		if err := utils.Unmarshal(data, &resp); err != nil {
 			return fmt.Errorf("failed to decode data %s: %w", string(data), err)
 		}
 	} else {
@@ -269,7 +268,7 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 		// try to parse standard graphql error
 		errors := &GqlErrorList{}
 		if c.applyMsgPackEncoder {
-			if e := utils.UnPack(data, errors); e != nil {
+			if e := utils.Unmarshal(data, errors); e != nil {
 				return fmt.Errorf("faild to parse graphql errors. Response content %s - %w ", string(data), e)
 			}
 		} else {

@@ -409,7 +409,7 @@ func loadRemoteSchema(ctx context.Context, c *Config, conn axon.EventStore, opts
 	}
 
 	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(fmt.Sprintf("graphrpc://%s.introspect", rpc.ServiceName()), res))
-	if err != nil && err.Error() != "" {
+	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 

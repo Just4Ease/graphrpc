@@ -60,17 +60,17 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 
 	var err error
 	if r.ContentLength > f.maxUploadSize() {
-		writeJsonError(w, "failed to parse multipart form, request body too large")
+		writeError(false, w, "failed to parse multipart form, request body too large")
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, f.maxUploadSize())
 	if err = r.ParseMultipartForm(f.maxMemory()); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if strings.Contains(err.Error(), "request body too large") {
-			writeJsonError(w, "failed to parse multipart form, request body too large")
+			writeError(false, w, "failed to parse multipart form, request body too large")
 			return
 		}
-		writeJsonError(w, "failed to parse multipart form")
+		writeError(false, w, "failed to parse multipart form")
 		return
 	}
 	defer r.Body.Close()
@@ -79,14 +79,14 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 
 	if err = jsonDecode(strings.NewReader(r.Form.Get("operations")), &params); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		writeJsonError(w, "operations form field could not be decoded")
+		writeError(false, w, "operations form field could not be decoded")
 		return
 	}
 
 	uploadsMap := map[string][]string{}
 	if err = json.Unmarshal([]byte(r.Form.Get("map")), &uploadsMap); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		writeJsonError(w, "map form field could not be decoded")
+		writeError(false, w, "map form field could not be decoded")
 		return
 	}
 
@@ -94,13 +94,13 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 	for key, paths := range uploadsMap {
 		if len(paths) == 0 {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			writeJsonErrorf(w, "invalid empty operations paths list for key %s", key)
+			writeErrorf(false, w, "invalid empty operations paths list for key %s", key)
 			return
 		}
 		file, header, err := r.FormFile(key)
 		if err != nil {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			writeJsonErrorf(w, "failed to get key %s from form", key)
+			writeErrorf(false, w, "failed to get key %s from form", key)
 			return
 		}
 		defer file.Close()
@@ -115,7 +115,7 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 
 			if err := params.AddUpload(upload, key, paths[0]); err != nil {
 				w.WriteHeader(http.StatusUnprocessableEntity)
-				writeJsonGraphqlError(w, err)
+				writeGraphqlError(false, w, err)
 				return
 			}
 		} else {
@@ -123,7 +123,7 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 				fileBytes, err := ioutil.ReadAll(file)
 				if err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
-					writeJsonErrorf(w, "failed to read file for key %s", key)
+					writeErrorf(false, w, "failed to read file for key %s", key)
 					return
 				}
 				for _, path := range paths {
@@ -136,7 +136,7 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 
 					if err := params.AddUpload(upload, key, path); err != nil {
 						w.WriteHeader(http.StatusUnprocessableEntity)
-						writeJsonGraphqlError(w, err)
+						writeGraphqlError(false, w, err)
 						return
 					}
 				}
@@ -144,7 +144,7 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 				tmpFile, err := ioutil.TempFile(os.TempDir(), "gqlgen-")
 				if err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
-					writeJsonErrorf(w, "failed to create temp file for key %s", key)
+					writeErrorf(false, w, "failed to create temp file for key %s", key)
 					return
 				}
 				tmpName := tmpFile.Name()
@@ -155,22 +155,22 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 				if err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 					if err := tmpFile.Close(); err != nil {
-						writeJsonErrorf(w, "failed to copy to temp file and close temp file for key %s", key)
+						writeErrorf(false, w, "failed to copy to temp file and close temp file for key %s", key)
 						return
 					}
-					writeJsonErrorf(w, "failed to copy to temp file for key %s", key)
+					writeErrorf(false, w, "failed to copy to temp file for key %s", key)
 					return
 				}
 				if err := tmpFile.Close(); err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
-					writeJsonErrorf(w, "failed to close temp file for key %s", key)
+					writeErrorf(false, w, "failed to close temp file for key %s", key)
 					return
 				}
 				for _, path := range paths {
 					pathTmpFile, err := os.Open(tmpName)
 					if err != nil {
 						w.WriteHeader(http.StatusUnprocessableEntity)
-						writeJsonErrorf(w, "failed to open temp file for key %s", key)
+						writeErrorf(false, w, "failed to open temp file for key %s", key)
 						return
 					}
 					defer pathTmpFile.Close()
@@ -183,7 +183,7 @@ func (f MultipartForm) Do(w http.ResponseWriter, r *http.Request, exec graphql.G
 
 					if err := params.AddUpload(upload, key, path); err != nil {
 						w.WriteHeader(http.StatusUnprocessableEntity)
-						writeJsonGraphqlError(w, err)
+						writeGraphqlError(false, w, err)
 						return
 					}
 				}
