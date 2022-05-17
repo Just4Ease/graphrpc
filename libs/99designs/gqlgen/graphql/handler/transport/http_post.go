@@ -11,7 +11,7 @@ import (
 // defined in https://github.com/APIs-guru/graphql-over-http#post
 type POST struct{ applyMsgpackEncoder bool }
 
-var _ graphql.Transport = POST{}
+var _ graphql.Transport = POST{applyMsgpackEncoder: false}
 
 func (h POST) Supports(r *http.Request) bool {
 	if r.Header.Get("Upgrade") != "" {

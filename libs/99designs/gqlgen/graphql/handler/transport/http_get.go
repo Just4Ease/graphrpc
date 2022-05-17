@@ -15,7 +15,7 @@ import (
 // defined in https://github.com/APIs-guru/graphql-over-http#get
 type GET struct{ applyMsgpackEncoder bool }
 
-var _ graphql.Transport = GET{}
+var _ graphql.Transport = GET{applyMsgpackEncoder: false}
 
 func (h GET) Supports(r *http.Request) bool {
 	if r.Header.Get("Upgrade") != "" {

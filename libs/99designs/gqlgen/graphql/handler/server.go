@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/borderlesshq/graphrpc/utils"
+	"mime"
 	"net/http"
 	"time"
 
@@ -18,9 +19,8 @@ import (
 
 type (
 	Server struct {
-		transports           []graphql.Transport
-		exec                 *executor.Executor
-		applyMsgPackEncoding bool
+		transports []graphql.Transport
+		exec       *executor.Executor
 	}
 )
 
@@ -71,10 +71,6 @@ func (s *Server) Use(extension graphql.HandlerExtension) {
 	s.exec.Use(extension)
 }
 
-func (s *Server) ApplyMsgpackEncoding() {
-	s.applyMsgPackEncoding = true
-}
-
 // AroundFields is a convenience method for creating an extension that only implements field middleware
 func (s *Server) AroundFields(f graphql.FieldMiddleware) {
 	s.exec.AroundFields(f)
@@ -105,14 +101,22 @@ func (s *Server) getTransport(r *http.Request) graphql.Transport {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	applyMsgpackEncoder := false
+
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+
+	if mediaType == "application/msgpack" {
+		applyMsgpackEncoder = true
+	}
+
 	defer func() {
 		if err := recover(); err != nil {
 			err := s.exec.PresentRecoveredError(r.Context(), err)
 			resp := &graphql.Response{Errors: []*gqlerror.Error{err}}
-			var b []byte
-			if s.applyMsgPackEncoding {
-				b, _ = utils.Marshal(resp)
 
+			var b []byte
+			if applyMsgpackEncoder {
+				b, _ = utils.Marshal(resp)
 			} else {
 				b, _ = json.Marshal(resp)
 			}
