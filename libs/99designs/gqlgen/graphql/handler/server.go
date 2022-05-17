@@ -106,6 +106,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 
 	if mediaType == "application/msgpack" {
+		fmt.Println(mediaType, "msgpack on lock...")
 		applyMsgpackEncoder = true
 	}
 

@@ -3,6 +3,7 @@ package graphql
 import (
 	"context"
 	"fmt"
+	"github.com/borderlesshq/graphrpc/utils"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -13,8 +14,7 @@ import (
 type Response struct {
 	Errors     gqlerror.List          `json:"errors,omitempty" msgpack:"errors,omitempty"`
 	Extensions map[string]interface{} `json:"extensions,omitempty" msgpack:"extensions,omitempty"`
-	Data       []byte                 `json:"data" msgpack:"data"`
-	//Data       json.RawMessage        `json:"data" msgpack:"data"`
+	Data       utils.RawMessage        `json:"data" msgpack:"data"`
 }
 
 func ErrorResponse(ctx context.Context, messages string, args ...interface{}) *Response {

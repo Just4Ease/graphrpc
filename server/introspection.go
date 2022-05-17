@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Just4Ease/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/introspection"
+	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	goLog "log"
@@ -29,7 +30,13 @@ func (s *Server) mountGraphIntrospectionSubscriber() {
 		}
 
 		contentType := "application/json"
-		marsh, _ := json.Marshal(payload)
+		var marsh []byte
+		if s.applyMsgpackEncoding {
+			contentType = "application/msgpack"
+			marsh, _ = utils.Marshal(payload)
+		} else {
+			marsh, _ = json.Marshal(payload)
+		}
 
 		r, err := http.Post(endpoint, contentType, bytes.NewReader(marsh))
 		if err != nil {

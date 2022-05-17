@@ -2,6 +2,7 @@ package transport
 
 import (
 	"mime"
+	"fmt"
 	"net/http"
 
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
@@ -27,7 +28,8 @@ func (h POST) Supports(r *http.Request) bool {
 		h.applyMsgpackEncoder = true
 	}
 
-	return r.Method == "POST"
+	fmt.Println("transport tested", h.applyMsgpackEncoder, r.Method, mediaType)
+	return r.Method == "POST" && mediaType == "application/json"
 }
 
 func (h POST) Do(w http.ResponseWriter, r *http.Request, exec graphql.GraphExecutor) {
@@ -51,14 +53,14 @@ func (h POST) Do(w http.ResponseWriter, r *http.Request, exec graphql.GraphExecu
 		Start: start,
 		End:   graphql.Now(),
 	}
-
+	
 	rc, err := exec.CreateOperationContext(r.Context(), params)
 	if err != nil {
 		w.WriteHeader(statusFor(err))
 		resp := exec.DispatchError(graphql.WithOperationContext(r.Context(), rc), err)
-		writeJson(w, resp)
+		writeResponse(h.applyMsgpackEncoder, w, resp)
 		return
 	}
 	responses, ctx := exec.DispatchOperation(r.Context(), rc)
-	writeJson(w, responses(ctx))
+	writeResponse(h.applyMsgpackEncoder, w, responses(ctx))
 }

@@ -32,7 +32,6 @@ func (h GET) Supports(r *http.Request) bool {
 	} else {
 		h.applyMsgpackEncoder = false
 	}
-
 	return r.Method == "GET"
 }
 

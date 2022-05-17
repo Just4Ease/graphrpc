@@ -247,8 +247,8 @@ func (c *Client) parseResponse(body []byte, httpCode int, result interface{}, is
 
 // response is a GraphQL layer response from a handler.
 type response struct {
-	Data   []byte `json:"data" msgpack:"data"`
-	Errors []byte `json:"errors" msgpack:"errors"`
+	Data   utils.RawMessage `json:"data" msgpack:"data"`
+	Errors utils.RawMessage `json:"errors" msgpack:"errors"`
 }
 
 func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) error {

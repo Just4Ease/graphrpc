@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/borderlesshq/graphrpc/utils"
 	"io"
 	"reflect"
 	"strings"
@@ -43,7 +44,7 @@ import (
 //
 // The implementation is created on top of the JSON tokenizer available
 // in "encoding/json".Decoder.
-func UnmarshalData(data json.RawMessage, v interface{}) error {
+func UnmarshalData(data utils.RawMessage, v interface{}) error {
 	d := newDecoder(bytes.NewBuffer(data))
 	if err := d.Decode(v); err != nil {
 		return fmt.Errorf(": %w", err)
