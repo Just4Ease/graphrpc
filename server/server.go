@@ -286,13 +286,7 @@ func (s *Server) mountGraphSubscriber() {
 		if err != nil {
 			return nil, err
 		}
-
 		defer closeResBody(res)
-
-		//wr := &RPCResponseWriter{req: req, header: req.Header}
-		//go s.graphHTTPHandler.ServeHTTP(wr, wr.req)
-		//
-		//<-wr.Done
 
 		body, err := ioutil.ReadAll(res.Body)
 		if len(body) != 0 {
