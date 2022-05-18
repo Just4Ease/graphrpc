@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Just4Ease/axon/v2/messages"
-	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/introspection"
-	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	goLog "log"
@@ -25,18 +23,12 @@ func (s *Server) mountGraphIntrospectionSubscriber() {
 		}
 
 		payload := &Body{
-			Query:     introspection.Query,
+			Query:     IntrospectionQuery,
 			Variables: nil,
 		}
 
 		contentType := "application/json"
-		var marsh []byte
-		if s.applyMsgpackEncoding {
-			contentType = "application/msgpack"
-			marsh, _ = utils.Marshal(payload)
-		} else {
-			marsh, _ = json.Marshal(payload)
-		}
+		marsh, _ := json.Marshal(payload)
 
 		r, err := http.Post(endpoint, contentType, bytes.NewReader(marsh))
 		if err != nil {
@@ -59,3 +51,93 @@ func (s *Server) mountGraphIntrospectionSubscriber() {
 
 	<-make(chan bool)
 }
+
+const IntrospectionQuery = `
+ query IntrospectionQuery {
+    __schema {
+      queryType { name }
+      mutationType { name }
+      types {
+        ...FullType
+      }
+      directives {
+        name
+        description
+        locations
+        args {
+          ...InputValue
+        }
+      }
+    }
+  }
+  fragment FullType on __Type {
+    kind
+    name
+    description
+    fields(includeDeprecated: true) {
+      name
+      description
+      args {
+        ...InputValue
+      }
+      type {
+        ...TypeRef
+      }
+      isDeprecated
+      deprecationReason
+    }
+    inputFields {
+      ...InputValue
+    }
+    interfaces {
+      ...TypeRef
+    }
+    enumValues(includeDeprecated: true) {
+      name
+      description
+      isDeprecated
+      deprecationReason
+    }
+    possibleTypes {
+      ...TypeRef
+    }
+  }
+  fragment InputValue on __InputValue {
+    name
+    description
+    type { ...TypeRef }
+    defaultValue
+  }
+  fragment TypeRef on __Type {
+    kind
+    name
+    ofType {
+      kind
+      name
+      ofType {
+        kind
+        name
+        ofType {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`

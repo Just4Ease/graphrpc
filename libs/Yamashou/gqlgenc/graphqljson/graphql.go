@@ -99,6 +99,7 @@ func (d *Decoder) Decode(v interface{}) error {
 
 	d.vs = [][]reflect.Value{{rv.Elem()}}
 	if err := d.decode(); err != nil {
+		fmt.Println("failed decoding.")
 		return fmt.Errorf(": %w", err)
 	}
 

@@ -580,8 +580,8 @@ func (c *Config) injectBuiltins() {
 		"String":              {Model: StringList{"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.String"}},
 		"Boolean":             {Model: StringList{"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Boolean"}},
 		"Int": {Model: StringList{
-			"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int",
-			"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int32",
+			//"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int",
+			//"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int32",
 			"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int64",
 		}},
 		"ID": {

@@ -3,14 +3,11 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
 	"github.com/borderlesshq/graphrpc/utils"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"github.com/vmihailenco/msgpack/v5"
 	"io"
-	"mime"
-	"net/http"
-
-	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
-	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 func writeJson(w io.Writer, response *graphql.Response) {
@@ -73,9 +70,4 @@ func msgpackDecode(r io.Reader, val interface{}) error {
 
 	dec.Reset(r)
 	return dec.Decode(val)
-}
-
-func useMsgpackEncoding(r *http.Request) bool {
-	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	return mediaType == "application/msgpack"
 }

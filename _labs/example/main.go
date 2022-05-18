@@ -8,7 +8,7 @@ import (
 	"github.com/Just4Ease/axon/v2/options"
 	"github.com/Just4Ease/axon/v2/systems/jetstream"
 	"github.com/borderlesshq/graphrpc/client"
-	vendorService "github.com/borderlesshq/graphrpc/services/vendors"
+	userService "github.com/borderlesshq/graphrpc/services/users"
 	"log"
 )
 
@@ -19,21 +19,20 @@ func main() {
 		Address:     "localhost:4222",
 	})
 
-	s, err := vendorService.NewClient(ax, client.SetRemoteServiceName("ms-vendors"), client.SetRemoteGraphQLPath("graphql"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	s := userService.NewServiceClient(ax, client.SetRemoteServiceName("ms-users"), client.SetRemoteGraphQLPath("graphql"), client.ApplyMsgPackEncoder())
 
 	//v, err := s.ListVendors(context.Background(), nil)
 	//if err != nil {
 	//	log.Fatal(err)
 	//}
 
-	v, err := s.CreateVendor(context.Background(), nil)
+	v, err := s.ListUsers(context.Background(), userService.Filters{
+		Limit: 2,
+	}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	PrettyJson(v.CreateVendor)
+	PrettyJson(v.ListUsers)
 }
 
 const (

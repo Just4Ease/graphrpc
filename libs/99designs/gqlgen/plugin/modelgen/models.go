@@ -195,7 +195,6 @@ func (m *Plugin) MutateConfig(cfg *config.Config) error {
 					Description: field.Description,
 					Tag:         `json:"` + field.Name + `" msgpack:"` + field.Name + `"`,
 				}
-
 				if m.FieldHook != nil {
 					mf, err := m.FieldHook(schemaType, field, f)
 					if err != nil {

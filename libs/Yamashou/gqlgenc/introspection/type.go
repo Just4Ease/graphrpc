@@ -69,7 +69,7 @@ type Query struct {
 		SubscriptionType *struct{ Name *string }
 		Types            FullTypes
 		Directives       []*DirectiveType
-	} `graphql:"__schema"`
+	} `graphql:"__schema" json:"__schema" msgpack:"__schema"`
 }
 
 type DirectiveType struct {

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/borderlesshq/graphrpc/utils"
 	"net/http"
 	"strings"
 
@@ -25,7 +26,7 @@ func (h GET) Supports(r *http.Request) bool {
 }
 
 func (h GET) Do(w http.ResponseWriter, r *http.Request, exec graphql.GraphExecutor) {
-	applyMsgpackEncoder := useMsgpackEncoding(r)
+	applyMsgpackEncoder := utils.UseMsgpackEncoding(r)
 
 	if applyMsgpackEncoder {
 		w.Header().Set("Content-Type", "application/msgpack")

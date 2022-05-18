@@ -230,15 +230,17 @@ func (c *Clients) Generate() {
 func clientMutateHook(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	for _, model := range b.Models {
 		for _, field := range model.Fields {
-			field.Tag = `json:"` + field.Name
+
+			omitEmpty := ""
 			if genCfg.IsNilable(field.Type) {
-				field.Tag += ",omitempty"
+				omitEmpty = ",omitempty"
 			}
-			field.Tag += `msgpack:` + field.Name
-			if genCfg.IsNilable(field.Type) {
-				field.Tag += ",omitempty"
-			}
-			field.Tag += `"`
+
+			jsonTag := fmt.Sprintf(`json:"%s%s"`, field.Name, omitEmpty)
+			msgpackTag := fmt.Sprintf(`msgpack:"%s%s"`, field.Name, omitEmpty)
+			graphql := fmt.Sprintf(`graphql:"%s%s"`, field.Name, omitEmpty)
+			tag := fmt.Sprintf(`%s %s %s`, jsonTag, msgpackTag, graphql)
+			field.Tag = tag
 		}
 	}
 	return b

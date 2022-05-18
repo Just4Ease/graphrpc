@@ -124,6 +124,11 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 }
 
 func (c *Client) exec(_ context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
+
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+
 	r := &Request{
 		Query:         query,
 		Variables:     variables,
@@ -132,17 +137,24 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 
 	var requestBody []byte
 	var err error
+	pubOptions := make([]options.PublisherOption, 0)
 	if c.applyMsgPackEncoder {
 		requestBody, err = utils.Marshal(r)
 		headers["Content-Type"] = "application/msgpack"
+		pubOptions = append(pubOptions, options.SetPubContentType("application/msgpack"))
 	} else {
 		requestBody, err = json.Marshal(r)
+		headers["Content-Type"] = "application/json"
+		pubOptions = append(pubOptions, options.SetPubContentType("application/json"))
 	}
+
+	pubOptions = append(pubOptions, options.SetPubHeaders(headers))
+
 	if err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
 	}
 
-	mg, err := c.axonConn.Request(c.BaseURL, requestBody, options.SetPubHeaders(headers))
+	mg, err := c.axonConn.Request(c.BaseURL, requestBody, pubOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -262,11 +274,11 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 
 	if c.applyMsgPackEncoder {
 		if err := utils.Unmarshal(data, &resp); err != nil {
-			return fmt.Errorf("failed to decode data %s: %w", string(data), err)
+			return fmt.Errorf("failed to decode (msgpack) data %s: %w", string(data), err)
 		}
 	} else {
 		if err := json.Unmarshal(data, &resp); err != nil {
-			return fmt.Errorf("failed to decode data %s: %w", string(data), err)
+			return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
 		}
 	}
 
@@ -275,11 +287,11 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 		errors := &GqlErrorList{}
 		if c.applyMsgPackEncoder {
 			if e := utils.Unmarshal(data, errors); e != nil {
-				return fmt.Errorf("faild to parse graphql errors. Response content %s - %w ", string(data), e)
+				return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
 			}
 		} else {
 			if e := json.Unmarshal(data, errors); e != nil {
-				return fmt.Errorf("faild to parse graphql errors. Response content %s - %w ", string(data), e)
+				return fmt.Errorf("faild to parse graphql (json) errors. Response content %s - %w ", string(data), e)
 			}
 		}
 

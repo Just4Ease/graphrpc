@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"github.com/vmihailenco/msgpack/v5"
+	"mime"
+	"net/http"
 )
 
 func UnPack(in interface{}, target interface{}) error {
@@ -52,10 +54,9 @@ func Unmarshal(b []byte, target interface{}) error {
 	return dec.Decode(target)
 }
 
-
-// RawMessage is a raw encoded JSON value.
+// RawMessage is a raw encoded JSON or msgpack value.
 // It implements Marshaler and Unmarshaler and can
-// be used to delay JSON decoding or precompute a JSON encoding.
+// be used to delay JSON or msgpack decoding or precompute a JSON or msgpack encoding.
 type RawMessage []byte
 
 func (m *RawMessage) UnmarshalMSGPACK(data []byte) error {
@@ -99,10 +100,19 @@ type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 	MarshalMSGPACK() ([]byte, error)
 }
-// Marshaler is the interface implemented by types that
+
+// Unmarshaler is the interface implemented by types that
 // can marshal themselves into valid JSON.
 type Unmarshaler interface {
 	UnmarshalJSON(data []byte) error
 	UnmarshalMSGPACK(data []byte) error
 }
 
+//func (r RawMessage) Encoding() string {
+//
+//}
+
+func UseMsgpackEncoding(r *http.Request) bool {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	return mediaType == "application/msgpack"
+}
