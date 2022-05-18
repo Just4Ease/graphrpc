@@ -151,6 +151,12 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 		return nil, errors.New(mg.Error)
 	}
 
+	if mg.ContentType == "application/msgpack" {
+		c.applyMsgPackEncoder = true
+	} else {
+		c.applyMsgPackEncoder = false
+	}
+
 	return mg.Body, nil
 }
 

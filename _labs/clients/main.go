@@ -25,10 +25,10 @@ func main() {
 	}{
 		{
 			opts: []generator.ClientGeneratorOption{
-				generator.RemoteServiceName("ms-vendors"),
+				generator.RemoteServiceName("ms-users"),
 				generator.SetAxonConn(eventStore),
-				generator.Package("vendorService", "/vendors"),
-				generator.QueriesPath("definitions/**/*.graphql"),
+				generator.Package("userService", "/users"),
+				generator.QueriesPath("schema/**/*.graphql"),
 				generator.RemoteGraphQLPath("/graphql", nil),
 			},
 		},
