@@ -6,12 +6,12 @@ import (
 	"github.com/borderlesshq/graphrpc/internal/code"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/api"
 	genCfg "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
+	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"os/exec"
 )
 
 func GenerateGraphRPCServer(fileName string) {
@@ -70,7 +70,6 @@ func GenerateGraphRPCServer(fileName string) {
 		os.Exit(4)
 		return
 	}
-
-	command := fmt.Sprintf("golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment -fix ./%s > /dev/null 2>&1 || :", cfg.Model.Dir())
-	_ = exec.Command("go", "run", command).Run()
+	
+	utils.FixFieldAlignment(cfg.Model.Dir())
 }

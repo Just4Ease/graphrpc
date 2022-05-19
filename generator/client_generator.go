@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Just4Ease/axon/v2"
 	"github.com/borderlesshq/graphrpc/client"
@@ -11,10 +12,9 @@ import (
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
 	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/clientgen"
 	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/config"
+	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/gookit/color"
-	"github.com/pkg/errors"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 )
@@ -224,11 +224,7 @@ func (c *Clients) Generate() {
 
 		model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
 		//generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
-
-		command := fmt.Sprintf("run golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment -fix ./%s", model)
-		fmt.Println(command, "commando.")
-		o, e := exec.Command("go", command).Output()
-		fmt.Println(o, e)
+		utils.FixFieldAlignment(model)
 		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }
