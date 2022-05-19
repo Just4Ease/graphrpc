@@ -36,6 +36,7 @@ func main() {
     	handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}})),
     	server.SetGraphHTTPServerAddress(address),
     	server.SetGraphQLPath("/graphql"),
+    	server.ApplyMsgpackEncoder(),
     ).Serve(); err != nil {
     	logrus.Fatalf("could not start server on %s. Got error: %s", address, err)
     }

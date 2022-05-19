@@ -128,7 +128,6 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 	if headers == nil {
 		headers = make(map[string]string)
 	}
-
 	r := &Request{
 		Query:         query,
 		Variables:     variables,
@@ -149,7 +148,6 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 	}
 
 	pubOptions = append(pubOptions, options.SetPubHeaders(headers))
-
 	if err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
 	}
@@ -168,7 +166,6 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 	} else {
 		c.applyMsgPackEncoder = false
 	}
-
 	return mg.Body, nil
 }
 

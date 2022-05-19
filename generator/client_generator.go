@@ -14,6 +14,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 )
@@ -221,6 +222,11 @@ func (c *Clients) Generate() {
 			os.Exit(4)
 		}
 
+		model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
+		//generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
+
+		command := fmt.Sprintf("golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment -fix ./%s > /dev/null 2>&1 || :", model)
+		_ = exec.Command("go", "run", command).Run()
 		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }

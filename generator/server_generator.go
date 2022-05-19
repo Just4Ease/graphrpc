@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"os/exec"
 )
 
 func GenerateGraphRPCServer(fileName string) {
@@ -69,4 +70,7 @@ func GenerateGraphRPCServer(fileName string) {
 		os.Exit(4)
 		return
 	}
+
+	command := fmt.Sprintf("golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment -fix ./%s > /dev/null 2>&1 || :", cfg.Model.Dir())
+	_ = exec.Command("go", "run", command).Run()
 }
