@@ -226,7 +226,8 @@ func (c *Clients) Generate() {
 		//generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
 
 		command := fmt.Sprintf("golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment -fix ./%s > /dev/null 2>&1 || :", model)
-		_ = exec.Command("go", "run", command).Run()
+		o, e := exec.Command("go", "run", command).Output()
+		fmt.Println(o, e)
 		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }
