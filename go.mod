@@ -6,6 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.5
 	github.com/Just4Ease/axon/v2 v2.0.6
 	github.com/Yamashou/gqlgenc v0.0.6
+	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/gookit/color v1.5.0
 	github.com/gorilla/websocket v1.5.0
@@ -13,7 +14,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nats-io/nats-server/v2 v2.8.2
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli/v2 v2.6.0
 	github.com/vektah/gqlparser/v2 v2.4.2
@@ -29,13 +29,13 @@ require (
 	github.com/klauspost/compress v1.15.4 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/nats-io/jwt/v2 v2.2.1-0.20220330180145-442af02fd36a // indirect
-	github.com/nats-io/nats.go v1.14.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oklog/ulid/v2 v2.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	golang.org/x/crypto v0.0.0-20220511200225-c6db032c6c88 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect

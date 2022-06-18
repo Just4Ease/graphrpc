@@ -7,8 +7,8 @@ import (
 	"github.com/Just4Ease/axon/v2"
 	"github.com/Just4Ease/axon/v2/messages"
 	"github.com/Just4Ease/axon/v2/options"
-	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/graphqljson"
 	"github.com/borderlesshq/graphrpc/utils"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"log"
@@ -296,7 +296,7 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 	}
 
 	if !isIntrospection {
-		if err := graphqljson.UnmarshalData(resp.Data, res); err != nil {
+		if err := cbor.Unmarshal(resp.Data, res); err != nil {
 			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
 		}
 		return nil
