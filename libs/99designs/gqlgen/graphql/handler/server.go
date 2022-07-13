@@ -137,6 +137,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	transport.Do(w, r, s.exec)
 }
 
+func (s *Server) ExecGraphCommand(ctx context.Context, params *graphql.RawParams) (*graphql.Response, error) {
+	rc, err := s.exec.CreateOperationContext(ctx, params)
+	if err != nil {
+		resp := s.exec.DispatchError(graphql.WithOperationContext(ctx, rc), err)
+		return resp, nil
+	}
+	responses, responseContext := s.exec.DispatchOperation(ctx, rc)
+	return responses(responseContext), nil
+}
+
 func sendError(w http.ResponseWriter, code int, errors ...*gqlerror.Error) {
 	w.WriteHeader(code)
 	b, err := json.Marshal(&graphql.Response{Errors: errors})

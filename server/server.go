@@ -18,14 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Just4Ease/axon/v2"
-	"github.com/Just4Ease/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/handler"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -128,7 +126,7 @@ func ApplyMsgpackEncoder() Option {
 type Server struct {
 	axonClient           axon.EventStore // AxonClient
 	opts                 *Options        // graph & nats options
-	graphHTTPHandler     http.Handler    // graphql/rest handler
+	graphHandler         *handler.Server // graphql/rest handler
 	graphListener        net.Listener    // graphql listener
 	router               *chi.Mux        // chi router.
 	mu                   sync.Mutex
@@ -158,7 +156,7 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 		mu:                   sync.Mutex{},
 		axonClient:           axon,
 		opts:                 opts,
-		graphHTTPHandler:     h,
+		graphHandler:         h,
 		applyMsgpackEncoding: opts.applyMsgpackEncoding,
 	}
 }
@@ -193,22 +191,14 @@ func (s *Server) Serve() error {
 		return err
 	}
 
-	go s.mountGraphIntrospectionSubscriber()
-	go s.mountGraphSubscriber()
-
 	if s.opts.postRunHook != nil {
 		if err := s.opts.postRunHook(s.axonClient); err != nil {
 			return errors.Wrap(err, "failed to execute post run hook")
 		}
 	}
 
+	go s.mountGraphSubscriber()
 	return s.mountGraphHTTPServer()
-}
-
-func closeResBody(res *http.Response) {
-	if err := res.Body.Close(); err != nil {
-		log.Printf("failed to close request body: %v", err)
-	}
 }
 
 func (s *Server) mountGraphHTTPServer() error {
@@ -230,9 +220,7 @@ func (s *Server) mountGraphHTTPServer() error {
 		})
 	}
 
-	router.Handle(graphEndpoint, s.graphHTTPHandler)
-
-	// TODO: Serve https with tls.
+	router.Handle(graphEndpoint, s.graphHandler)
 	color.Green.Printf("🚀 GraphQL Playground    :  http://%s/\n", s.opts.address)
 	color.Green.Printf("🐙 GraphQL HTTP Endpoint :  http://%s/%s\n", s.opts.address, s.opts.graphEntrypoint)
 	color.Green.Printf("🦾 GraphQL Entry Path    :  %s\n", color.OpUnderscore.Sprint(color.Cyan.Sprintf("/%s", s.opts.graphEntrypoint)))
@@ -242,11 +230,6 @@ func (s *Server) mountGraphHTTPServer() error {
 	// See subscribers.go for more understanding.
 	s.router = router
 	return http.Serve(s.graphListener, router)
-}
-
-func (s *Server) WaitForShutdown() {
-	//s.axonClient.Close()
-	_ = s.graphListener.Close()
 }
 
 const (
@@ -265,45 +248,3 @@ func PrettyJson(data interface{}) {
 	}
 	fmt.Print(buffer.String())
 }
-
-func (s *Server) mountGraphSubscriber() {
-	root := fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint)
-	endpoint := fmt.Sprintf("http://%s/%s", s.graphListener.Addr().String(), s.opts.graphEntrypoint)
-	err := s.axonClient.Reply(root, func(mg *messages.Message) (*messages.Message, error) {
-
-		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(mg.Body))
-		if err != nil {
-			return nil, err
-		}
-
-		for k, v := range mg.Header {
-			req.Header.Set(k, v)
-		}
-		req.Header.Set("Content-Type", mg.ContentType.String())
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer closeResBody(res)
-
-		body, err := ioutil.ReadAll(res.Body)
-		if len(body) != 0 {
-			return mg.WithBody(body), nil
-		}
-
-		if err != nil {
-			return nil, err
-		}
-		return nil, errors.New("internal server error")
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	<-make(chan bool)
-}
-
-//func (s *Server) ServeOnEvents() {
-//
-//}

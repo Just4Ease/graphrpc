@@ -63,13 +63,19 @@ type TypeRef struct {
 }
 
 type Query struct {
-	Schema struct {
-		QueryType        struct{ Name *string }
-		MutationType     *struct{ Name *string }
-		SubscriptionType *struct{ Name *string }
-		Types            FullTypes
-		Directives       []*DirectiveType
-	} `graphql:"__schema" json:"__schema" msgpack:"__schema"`
+	Schema `graphql:"__schema" json:"__schema" msgpack:"__schema"`
+}
+
+type Schema struct {
+	QueryType        *Types
+	MutationType     *Types
+	SubscriptionType Types
+	Types            FullTypes
+	Directives       []*DirectiveType
+}
+
+type Types struct {
+	Name *string
 }
 
 type DirectiveType struct {

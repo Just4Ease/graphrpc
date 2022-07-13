@@ -1,0 +1,43 @@
+package transport
+
+import (
+	"bytes"
+	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
+	"io"
+	"net/http"
+)
+
+// POST implements the POST side of the default HTTP transport
+// defined in https://github.com/APIs-guru/graphql-over-http#post
+type JSM struct{}
+
+func (h JSM) Do(w io.ReadWriteCloser, r messages.Message, exec graphql.GraphExecutor) {
+
+	//r.ContentType.String()
+	var params *graphql.RawParams
+	start := graphql.Now()
+	if err := decode(applyMsgpackEncoder, bytes.NewReader(r.Body), &params); err != nil {
+		writeErrorf(applyMsgpackEncoder, w, "body could not be decoded: "+err.Error())
+		return
+	}
+
+	params.Headers = make(http.Header)
+	for k, v := range r.Header {
+		params.Headers.Add(k, v)
+	}
+
+	params.ReadTime = graphql.TraceTiming{
+		Start: start,
+		End:   graphql.Now(),
+	}
+
+	rc, err := exec.CreateOperationContext(r.Context(), params)
+	if err != nil {
+		resp := exec.DispatchError(graphql.WithOperationContext(r.Context(), rc), err)
+		writeResponse(applyMsgpackEncoder, w, resp)
+		return
+	}
+	responses, ctx := exec.DispatchOperation(r.Context(), rc)
+	writeResponse(applyMsgpackEncoder, w, responses(ctx))
+}

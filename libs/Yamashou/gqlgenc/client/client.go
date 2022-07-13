@@ -262,34 +262,42 @@ func (c *Client) parseResponse(body []byte, httpCode int, result interface{}, is
 
 // response is a GraphQL layer response from a handler.
 type response struct {
-	Data   utils.RawMessage `json:"data" msgpack:"data"`
-	Errors utils.RawMessage `json:"errors" msgpack:"errors"`
+	Data   utils.RawMessage `json:"data" cbor:"data"`
+	Errors utils.RawMessage `json:"errors" cbor:"errors"`
 }
 
 func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) error {
 	resp := response{}
 
-	if c.applyMsgPackEncoder {
-		if err := utils.Unmarshal(data, &resp); err != nil {
-			return fmt.Errorf("failed to decode (msgpack) data %s: %w", string(data), err)
-		}
-	} else {
-		if err := json.Unmarshal(data, &resp); err != nil {
-			return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
-		}
+	//if c.applyMsgPackEncoder {
+	//	if err := utils.Unmarshal(data, &resp); err != nil {
+	//		return fmt.Errorf("failed to decode (msgpack) data %s: %w", string(data), err)
+	//	}
+	//} else {
+	//	if err := json.Unmarshal(data, &resp); err != nil {
+	//		return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
+	//	}
+	//}
+
+	if err := cbor.Unmarshal(data, &resp); err != nil {
+		return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
 	}
 
 	if resp.Errors != nil && len(resp.Errors) > 0 {
 		// try to parse standard graphql error
 		errors := &GqlErrorList{}
-		if c.applyMsgPackEncoder {
-			if e := utils.Unmarshal(data, errors); e != nil {
-				return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
-			}
-		} else {
-			if e := json.Unmarshal(data, errors); e != nil {
-				return fmt.Errorf("faild to parse graphql (json) errors. Response content %s - %w ", string(data), e)
-			}
+		//if c.applyMsgPackEncoder {
+		//	if e := utils.Unmarshal(data, errors); e != nil {
+		//		return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
+		//	}
+		//} else {
+		//	if e := json.Unmarshal(data, errors); e != nil {
+		//		return fmt.Errorf("faild to parse graphql (json) errors. Response content %s - %w ", string(data), e)
+		//	}
+		//}
+
+		if e := cbor.Unmarshal(data, errors); e != nil {
+			return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
 		}
 
 		return errors
@@ -302,15 +310,25 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 		return nil
 	}
 
-	if c.applyMsgPackEncoder {
-		if err := utils.UnPack(resp.Data, res); err != nil {
-			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
-		}
-	} else {
-		if err := json.Unmarshal(resp.Data, res); err != nil {
-			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
-		}
+	//if c.applyMsgPackEncoder {
+	//	if err := utils.UnPack(resp.Data, res); err != nil {
+	//		return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+	//	}
+	//} else {
+	//	if err := json.Unmarshal(resp.Data, res); err != nil {
+	//		return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+	//	}
+	//}
+
+	if err := json.Unmarshal(resp.Data, res); err != nil {
+		return fmt.Errorf("failed to decode data into response %s: %w", string(resp.Data), err)
 	}
 
+	//dec := cbor.NewDecoder(bytes.NewBuffer(resp.Data))
+	//
+	//if err := dec.Decode(res); err != nil {
+	//	return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+	//}
+	//
 	return nil
 }
