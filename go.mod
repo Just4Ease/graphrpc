@@ -4,15 +4,15 @@ go 1.17
 
 require (
 	github.com/99designs/gqlgen v0.17.5
-	github.com/Just4Ease/axon/v2 v2.0.6
 	github.com/Yamashou/gqlgenc v0.0.6
+	github.com/borderlesshq/axon/v2 v2.0.8
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/gookit/color v1.5.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/nats-io/nats-server/v2 v2.8.2
+	github.com/nats-io/nats-server/v2 v2.8.4
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli/v2 v2.6.0
@@ -26,9 +26,12 @@ require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gosimple/slug v1.12.0 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/klauspost/compress v1.15.4 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/nats-io/jwt/v2 v2.2.1-0.20220330180145-442af02fd36a // indirect
+	github.com/nats-io/nats.go v1.15.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oklog/ulid/v2 v2.0.2 // indirect

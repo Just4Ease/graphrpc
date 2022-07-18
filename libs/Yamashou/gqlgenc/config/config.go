@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"github.com/Just4Ease/axon/v2"
 	graphRPClient "github.com/borderlesshq/graphrpc/client"
 	"github.com/pkg/errors"
 	"io/ioutil"

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Just4Ease/axon/v2/options"
-	"github.com/Just4Ease/axon/v2/systems/jetstream"
+	"github.com/borderlesshq/axon/v2/options"
+	"github.com/borderlesshq/axon/v2/systems/jetstream"
 	"github.com/borderlesshq/graphrpc/generator"
 	"log"
 )

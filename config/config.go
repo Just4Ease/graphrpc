@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"github.com/Just4Ease/axon/v2"
 	graphRPClient "github.com/borderlesshq/graphrpc/client"
 	"io/ioutil"
 	"os"
@@ -180,8 +179,6 @@ func loadRemoteSchema(ctx context.Context, c *gencConf.Config, conn axon.EventSt
 	for key, value := range c.Endpoint.Headers {
 		opts = append(opts, graphRPClient.SetHeader(key, value))
 	}
-
-	opts = append(opts, graphRPClient.SetRemoteGraphQLPath("introspect"))
 
 	rpc, err := graphRPClient.NewClient(conn, opts...)
 	if err != nil {

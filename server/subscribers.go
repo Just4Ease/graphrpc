@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
 	"github.com/pkg/errors"
 	"log"
@@ -14,7 +14,6 @@ import (
 
 func (s *Server) mountGraphSubscriber() {
 	err := s.axonClient.Reply(fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint), func(mg *messages.Message) (*messages.Message, error) {
-
 		ctx := context.Background()
 
 		var params *graphql.RawParams

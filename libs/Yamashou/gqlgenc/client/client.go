@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Just4Ease/axon/v2"
-	"github.com/Just4Ease/axon/v2/messages"
-	"github.com/Just4Ease/axon/v2/options"
+	"github.com/borderlesshq/axon/v2/messages"
+	"github.com/borderlesshq/axon/v2/options"
 	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
@@ -123,8 +122,7 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) exec(_ context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
-
+func (c *Client) exec(ctx context.Context, operationName, query string, variables map[string]interface{}, headers Header) ([]byte, error) {
 	if headers == nil {
 		headers = make(map[string]string)
 	}
@@ -147,7 +145,7 @@ func (c *Client) exec(_ context.Context, operationName, query string, variables 
 		pubOptions = append(pubOptions, options.SetPubContentType("application/json"))
 	}
 
-	pubOptions = append(pubOptions, options.SetPubHeaders(headers))
+	pubOptions = append(pubOptions, options.SetPubHeaders(headers), options.SetPubContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
 	}
@@ -215,8 +213,8 @@ func (er *ErrorResponse) Error() string {
 	return string(content)
 }
 
-// Post sends a http POST request to the graphql endpoint with the given query then unpacks
-// the response into the given object.
+// Exec is used to prepare and make a network call over the underlying network stream.
+// When data is returned it is parsed with respect to the document structure.
 func (c *Client) Exec(ctx context.Context, operationName, query string, respData interface{}, vars map[string]interface{}, headers Header) error {
 	result, err := c.exec(ctx, operationName, query, vars, headers)
 	if err != nil {

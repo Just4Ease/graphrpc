@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Just4Ease/axon/v2"
 	"github.com/borderlesshq/graphrpc/client"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/api"
 	genCfg "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"

@@ -2,7 +2,7 @@ package transport
 
 import (
 	"bytes"
-	"github.com/Just4Ease/axon/v2/messages"
+	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
 	"io"
 	"net/http"

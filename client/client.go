@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/Just4Ease/axon/v2"
 	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/client"
 )
 
