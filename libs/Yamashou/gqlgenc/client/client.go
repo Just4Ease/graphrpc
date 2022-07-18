@@ -111,7 +111,7 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	}
 
 	if conn == nil {
-		panic("axon must not be nil. see github.com/Just4Ease/axon for more details on how to connect")
+		panic("axon must not be nil. see github.com/borderlesshq/axon for more details on how to connect")
 	}
 
 	return &Client{
@@ -268,36 +268,36 @@ type response struct {
 func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) error {
 	resp := response{}
 
-	//if c.applyMsgPackEncoder {
-	//	if err := utils.Unmarshal(data, &resp); err != nil {
-	//		return fmt.Errorf("failed to decode (msgpack) data %s: %w", string(data), err)
-	//	}
-	//} else {
-	//	if err := json.Unmarshal(data, &resp); err != nil {
-	//		return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
-	//	}
-	//}
-
-	if err := cbor.Unmarshal(data, &resp); err != nil {
-		return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
+	if c.applyMsgPackEncoder {
+		if err := utils.Unmarshal(data, &resp); err != nil {
+			return fmt.Errorf("failed to decode (msgpack) data %s: %w", string(data), err)
+		}
+	} else {
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
+		}
 	}
+
+	//if err := cbor.Unmarshal(data, &resp); err != nil {
+	//	return fmt.Errorf("failed to decode (json) data %s: %w", string(data), err)
+	//}
 
 	if resp.Errors != nil && len(resp.Errors) > 0 {
 		// try to parse standard graphql error
 		errors := &GqlErrorList{}
-		//if c.applyMsgPackEncoder {
-		//	if e := utils.Unmarshal(data, errors); e != nil {
-		//		return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
-		//	}
-		//} else {
-		//	if e := json.Unmarshal(data, errors); e != nil {
-		//		return fmt.Errorf("faild to parse graphql (json) errors. Response content %s - %w ", string(data), e)
-		//	}
-		//}
-
-		if e := cbor.Unmarshal(data, errors); e != nil {
-			return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
+		if c.applyMsgPackEncoder {
+			if e := utils.Unmarshal(data, errors); e != nil {
+				return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
+			}
+		} else {
+			if e := json.Unmarshal(data, errors); e != nil {
+				return fmt.Errorf("faild to parse graphql (json) errors. Response content %s - %w ", string(data), e)
+			}
 		}
+
+		//if e := cbor.Unmarshal(data, errors); e != nil {
+		//	return fmt.Errorf("faild to parse graphql (msgpack) errors. Response content %s - %w ", string(data), e)
+		//}
 
 		return errors
 	}
@@ -309,19 +309,19 @@ func (c *Client) unmarshal(data []byte, res interface{}, isIntrospection bool) e
 		return nil
 	}
 
-	//if c.applyMsgPackEncoder {
-	//	if err := utils.UnPack(resp.Data, res); err != nil {
-	//		return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
-	//	}
-	//} else {
-	//	if err := json.Unmarshal(resp.Data, res); err != nil {
-	//		return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
-	//	}
-	//}
-
-	if err := json.Unmarshal(resp.Data, res); err != nil {
-		return fmt.Errorf("failed to decode data into response %s: %w", string(resp.Data), err)
+	if c.applyMsgPackEncoder {
+		if err := utils.UnPack(resp.Data, res); err != nil {
+			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+		}
+	} else {
+		if err := json.Unmarshal(resp.Data, res); err != nil {
+			return fmt.Errorf("failed to decode data into response %s: %w", string(data), err)
+		}
 	}
+
+	//if err := json.Unmarshal(resp.Data, res); err != nil {
+	//	return fmt.Errorf("failed to decode data into response %s: %w", string(resp.Data), err)
+	//}
 
 	//dec := cbor.NewDecoder(bytes.NewBuffer(resp.Data))
 	//
