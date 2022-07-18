@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/borderlesshq/axon/v2"
 	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/axon/v2/options"
 	"github.com/borderlesshq/graphrpc/utils"

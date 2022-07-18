@@ -5,7 +5,6 @@ import (
 	"github.com/fxamacker/cbor/v2" // imports as cbor
 	"mime"
 	"net/http"
-	"strings"
 )
 
 func UnPack(in interface{}, target interface{}) error {
@@ -119,18 +118,18 @@ func UseMsgpackEncoding(r *http.Request) bool {
 	return mediaType == "application/cbor"
 }
 
-func SelectEncoder(contentType string) Marshaler {
-	if strings.ContainsAny(contentType, "cbor") {
-		// use cbor.
-	}
-
-	if strings.ContainsAny(contentType, "msgpack") {
-		// use msgpack.
-	}
-
-	return nil
-}
-
-func SelectDecoder(contentType string) Unmarshaler {
-	return nil
-}
+//func SelectEncoder(contentType string) Marshaler {
+//	if strings.ContainsAny(contentType, "cbor") {
+//		// use cbor.
+//	}
+//
+//	if strings.ContainsAny(contentType, "msgpack") {
+//		// use msgpack.
+//	}
+//
+//	return nil
+//}
+//
+//func SelectDecoder(contentType string) Unmarshaler {
+//	return nil
+//}
