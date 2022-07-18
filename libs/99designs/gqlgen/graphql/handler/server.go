@@ -138,13 +138,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ExecGraphCommand(ctx context.Context, params *graphql.RawParams) (*graphql.Response, error) {
+	var response *graphql.Response
+	defer func() {
+		if err := recover(); err != nil {
+			err := s.exec.PresentRecoveredError(ctx, err)
+			response = &graphql.Response{Errors: []*gqlerror.Error{err}}
+		}
+	}()
+
+	// Deliberately assigning value to `response` so that we can also capture the value from `defer func() block`
+	ctx = graphql.StartOperationTrace(ctx)
 	rc, err := s.exec.CreateOperationContext(ctx, params)
 	if err != nil {
-		resp := s.exec.DispatchError(graphql.WithOperationContext(ctx, rc), err)
-		return resp, nil
+		response = s.exec.DispatchError(graphql.WithOperationContext(ctx, rc), err)
+		return response, nil
 	}
 	responses, responseContext := s.exec.DispatchOperation(ctx, rc)
-	return responses(responseContext), nil
+	response = responses(responseContext)
+	return response, nil
 }
 
 func sendError(w http.ResponseWriter, code int, errors ...*gqlerror.Error) {

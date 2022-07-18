@@ -157,6 +157,7 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection) *ResponseFie
 		default:
 			// ここにきたらバグ
 			// here is bug
+			fmt.Println("inside bug line.")
 			panic("not match type")
 		}
 

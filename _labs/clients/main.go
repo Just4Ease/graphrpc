@@ -9,10 +9,10 @@ import (
 
 func main() {
 
-	eventStore, err := jetstream.Init(options.Options{
-		ServiceName: "gateway",
-		Address:     "nats://127.0.0.1:4222",
-	})
+	eventStore, err := jetstream.Init(
+		options.SetStoreName("gateway"),
+		options.SetAddress("localhost:4222"),
+	)
 
 	if err != nil {
 		log.Fatal(err)
@@ -25,9 +25,9 @@ func main() {
 	}{
 		{
 			opts: []generator.ClientGeneratorOption{
-				generator.RemoteServiceName("ms-deliveries"),
+				generator.RemoteServiceName("ms-users"),
 				generator.SetAxonConn(eventStore),
-				generator.Package("msDeliveries", "/deliveries"),
+				generator.Package("msUsers", "/users"),
 				generator.QueriesPath("schema/**/*.graphql"),
 				generator.RemoteGraphQLPath("/graphql", nil),
 			},

@@ -1,0 +1,31 @@
+name: Full Codegen
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build & Test
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Full Codegen
+      run: make example-fullgen
+
+    - name: Test Example
+      run: make example-test
+
+    - name: Codegen
+      run: make example-genall
+
+    - name: Test Example
+      run: make example-test

@@ -1,0 +1,127 @@
+query GetRoom($name: String!) {
+    room(name: $name) {
+        name
+        hash
+    }
+}
+
+query GetRoomNonNull($name: String!) {
+    roomNonNull(name: $name) {
+        name
+    }
+}
+
+fragment RoomFragment on Chatroom {
+    name
+}
+
+query GetRoomFragment($name: String!) {
+    room(name: $name) {
+        ... RoomFragment
+    }
+}
+
+query GetRoomCustom($name: String!) {
+    room(name: $name) {
+        name
+    }
+}
+
+query GetMedias {
+  medias {
+    ... on Image {
+      size
+    }
+    ... on Video {
+      duration
+    }
+  }
+}
+
+query GetBooks {
+  books {
+    title
+    ... on Textbook {
+      courses
+    }
+    ... on ColoringBook {
+      colors
+    }
+  }
+}
+
+subscription SubscribeMessageAdded {
+    messageAdded(roomName: "test") {
+        id
+    }
+}
+
+mutation CreatePost($input: PostCreateInput!) {
+    post(input: $input) {
+        id
+        text
+    }
+}
+
+mutation UploadFile($file: Upload!) {
+    uploadFile(file: $file) {
+        size
+    }
+}
+
+mutation UploadFiles($files: [Upload!]!) {
+    uploadFiles(files: $files) {
+        size
+    }
+}
+
+mutation UploadFilesMap($files: UploadFilesMapInput!) {
+    uploadFilesMap(files: $files) {
+        somefile {
+            size
+        }
+    }
+}
+
+query Issue8 {
+    issue8 {
+        foo1 {
+            a {
+                Aa
+            }
+        }
+        foo2 {
+            a {
+                Aa
+            }
+        }
+    }
+}
+
+query GetEpisodes {
+    episodes
+}
+
+query Cyclic1 {
+    cyclic {
+       child {
+            child {
+                child {
+                    id
+                }
+            }
+       }
+    }
+}
+
+query AsMap($req: AsMapInput!, $opt: AsMapInput) {
+    asMap(req: $req, opt: $opt)
+}
+
+query OptValue1($v: OptionalValue1!) {
+    optValue1(req: $v)
+}
+
+query OptValue2($v: OptionalValue2) {
+    optValue2(opt: $v)
+}

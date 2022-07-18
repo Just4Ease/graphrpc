@@ -1,0 +1,208 @@
+query getDeliveryById($id: String!){
+    delivery: getDeliveryById(id: $id) {
+        id
+        businessId
+        sessionId
+        mappingId
+        customTrackingId
+        requestPayment
+        paymentModel
+        paymentMethod
+        price
+        paid
+        currency
+        priceBreakdown
+        status
+        stage
+        timeCreated
+        timeUpdated
+        pickup {
+            id
+            sender {
+                senderAccountId
+                name
+                phone
+                pictureURL
+                alternatePhone
+            }
+            packages {
+                id
+                name
+                quantity
+                pictureURL
+            }
+            location {
+                address
+                state
+                stateCode
+                iso2
+                country
+                geometry {
+                    location {
+                        lat
+                        lng
+                    }
+                    bounds {
+                        northeast {
+                            lat
+                            lng
+                        }
+                        southwest {
+                            lat
+                            lng
+                        }
+                    }
+                    viewport {
+                        northeast {
+                            lat
+                            lng
+                        }
+                        southwest {
+                            lat
+                            lng
+                        }
+                    }
+                }
+            }
+            countryConfig {
+                id
+                name
+                currency
+                iso2
+                allowedVehicleCategories
+                controls {
+                    allowDriverSignup
+                    allowAutoAssignDriver
+                    allowRouteOptimisation
+                    allowDriverPooling
+                    allowDriverPing
+                    allowSMSNotifications
+                    allowAppPushNotifications
+                    allowInAppPayments
+                    allowCancelledOrderResurrection
+                }
+            }
+            stateConfig {
+                id
+                name
+                currency
+                iso2
+                stateCode
+                country
+                allowedVehicleCategories
+                priceCalculationStrategy
+                controls {
+                    allowDriverSignup
+                    allowAutoAssignDriver
+                    allowRouteOptimisation
+                    allowDriverPooling
+                    allowDriverPing
+                    allowSMSNotifications
+                    allowAppPushNotifications
+                    allowInAppPayments
+                    allowCancelledOrderResurrection
+                }
+            }
+        }
+        dropOff {
+            id
+            recipient {
+                senderAccountId
+                name
+                phone
+                pictureURL
+                alternatePhone
+                email
+            }
+            pickupPackages {
+                pickupId
+                packageId
+                quantity
+            }
+            location {
+                address
+                state
+                iso2
+                stateCode
+                country
+                geometry {
+                    location {
+                        lat
+                        lng
+                    }
+                    bounds {
+                        northeast {
+                            lat
+                            lng
+                        }
+                        southwest {
+                            lat
+                            lng
+                        }
+                    }
+                    viewport {
+                        northeast {
+                            lat
+                            lng
+                        }
+                        southwest {
+                            lat
+                            lng
+                        }
+                    }
+                }
+            }
+            countryConfig {
+                id
+                name
+                currency
+                iso2
+                allowedVehicleCategories
+                controls {
+                    allowDriverSignup
+                    allowAutoAssignDriver
+                    allowRouteOptimisation
+                    allowDriverPooling
+                    allowDriverPing
+                    allowSMSNotifications
+                    allowAppPushNotifications
+                    allowInAppPayments
+                    allowCancelledOrderResurrection
+                }
+            }
+            stateConfig {
+                id
+                name
+                currency
+                iso2
+                stateCode
+                country
+                allowedVehicleCategories
+                priceCalculationStrategy
+                controls {
+                    allowDriverSignup
+                    allowAutoAssignDriver
+                    allowRouteOptimisation
+                    allowDriverPooling
+                    allowDriverPing
+                    allowSMSNotifications
+                    allowAppPushNotifications
+                    allowInAppPayments
+                    allowCancelledOrderResurrection
+                }
+            }
+        }
+        driver {
+            id
+            firstName
+            lastName
+            phone
+            email
+            pictureURL
+        }
+        timeStarted
+        timeFinished
+        estimatedTime
+        actualDuration
+    }
+}

@@ -396,7 +396,7 @@ func loadRemoteSchema(ctx context.Context, c *Config, conn axon.EventStore, opts
 		opts = append(opts, graphRPClient.SetHeader(key, value))
 	}
 
-	opts = append(opts, graphRPClient.SetRemoteGraphQLPath("introspect"))
+	//opts = append(opts, graphRPClient.SetRemoteGraphQLPath("introspect"))
 
 	rpc, err := graphRPClient.NewClient(conn, opts...)
 	if err != nil {
@@ -404,7 +404,7 @@ func loadRemoteSchema(ctx context.Context, c *Config, conn axon.EventStore, opts
 	}
 
 	var res introspection.Query
-	if err := rpc.Exec(ctx, "Query", "", &res, nil, nil); err != nil {
+	if err := rpc.Exec(ctx, "", document, &res, nil, nil); err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 
@@ -424,3 +424,93 @@ func loadLocalSchema(c *Config) (*ast.Schema, error) {
 
 	return schema, nil
 }
+
+const document = `
+ query IntrospectionQuery {
+    __schema {
+      queryType { name }
+      mutationType { name }
+      types {
+        ...FullType
+      }
+      directives {
+        name
+        description
+        locations
+        args {
+          ...InputValue
+        }
+      }
+    }
+  }
+  fragment FullType on __Type {
+    kind
+    name
+    description
+    fields(includeDeprecated: true) {
+      name
+      description
+      args {
+        ...InputValue
+      }
+      type {
+        ...TypeRef
+      }
+      isDeprecated
+      deprecationReason
+    }
+    inputFields {
+      ...InputValue
+    }
+    interfaces {
+      ...TypeRef
+    }
+    enumValues(includeDeprecated: true) {
+      name
+      description
+      isDeprecated
+      deprecationReason
+    }
+    possibleTypes {
+      ...TypeRef
+    }
+  }
+  fragment InputValue on __InputValue {
+    name
+    description
+    type { ...TypeRef }
+    defaultValue
+  }
+  fragment TypeRef on __Type {
+    kind
+    name
+    ofType {
+      kind
+      name
+      ofType {
+        kind
+        name
+        ofType {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`
