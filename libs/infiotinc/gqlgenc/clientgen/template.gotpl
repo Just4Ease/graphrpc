@@ -127,20 +127,20 @@
                 Extensions client.RawExtensions
             }
 
-            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (<-chan Message{{ $op.Name|go }}, func()) {
-                Ξvars := map[string]interface{}{
+            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, headers client.Header) (<-chan Message{{ $op.Name|go }}, func()) {
+                vars := map[string]interface{}{
                 {{- range $args := .VariableDefinitions}}
                     "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
                 {{- end }}
                 }
 
                 { {{/* New block to prevent var names conflicts */}}
-                    res := Ξc.conn.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars)
+                    res := Ξc.conn.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, vars, headers)
 
                     ch := make(chan Message{{ $op.Name|go }})
 
                     go func() {
-                        for res.Next() {
+                        for {
                             opres := res.Get()
 
                             var msg Message{{ $op.Name|go }}
@@ -170,8 +170,8 @@
                 }
             }
         {{- else}}
-            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (*{{ $op.ResponseType | ref }},  error) {
-                Ξvars := map[string]interface{}{
+            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, headers client.Header) (*{{ $op.ResponseType | ref }},  error) {
+                vars := map[string]interface{}{
                 {{- range $args := .VariableDefinitions}}
                     "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
                 {{- end }}
@@ -179,7 +179,7 @@
 
                 { {{/* New block to prevent var names conflicts */}}
                     var data {{ $op.ResponseType | ref }}
-                    res, err := Ξc.conn.{{ $op.OperationType|ucFirst }}(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars, &data)
+                    res, err := Ξc.conn.{{ $op.OperationType|ucFirst }}(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, vars, &data, headers)
                     if err != nil {
                         return nil, err
                     }

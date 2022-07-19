@@ -41,7 +41,6 @@ type Client struct {
 
 	opts *Options
 	//RequestOptions   []HttpRequestOption
-	UseFormMultipart    bool
 	Headers             Header
 	applyMsgPackEncoder bool
 	extensions
@@ -143,43 +142,32 @@ func (c *Client) ServiceName() string {
 	return c.opts.remoteServiceName
 }
 
-func (c *Client) doSingle(
-	ctx context.Context,
-	operation Operation,
-	operationName string,
-	query string,
-	variables map[string]interface{},
-	t interface{},
-) (OperationResponse, error) {
-	res := c.do(Request{
+func (c *Client) exec(ctx context.Context, operation Operation, operationName string, query string, variables map[string]interface{}, t interface{}, header Header) (OperationResponse, error) {
+	opres, err := c.request(Request{
 		Context:       ctx,
 		Operation:     operation,
 		Query:         query,
 		OperationName: operationName,
 		Variables:     variables,
+		Headers:       header,
 	})
-	defer res.Close()
 
-	if !res.Next() {
-		if err := res.Err(); err != nil {
-			return OperationResponse{}, err
-		}
-
-		return OperationResponse{}, fmt.Errorf("no response")
+	if err != nil {
+		return OperationResponse{}, err
 	}
 
-	opres := res.Get()
-
-	err := opres.UnmarshalData(t)
+	if err := opres.UnmarshalData(t); err != nil {
+		return OperationResponse{}, err
+	}
 
 	if len(opres.Errors) > 0 {
-		return opres, opres.Errors
+		return OperationResponse{}, opres.Errors
 	}
 
-	return opres, err
+	return *opres, err
 }
 
-func (c *Client) do(req Request) Response {
+func (c *Client) stream(req Request) Response {
 	if req.Extensions == nil {
 		req.Extensions = map[string]interface{}{}
 	}
@@ -199,24 +187,25 @@ func (c *Client) do(req Request) Response {
 
 // Query runs a query
 // operationName is optional
-func (c *Client) Query(ctx context.Context, operationName string, query string, variables map[string]interface{}, t interface{}) (OperationResponse, error) {
-	return c.doSingle(ctx, Query, operationName, query, variables, t)
+func (c *Client) Query(ctx context.Context, operationName string, query string, variables map[string]interface{}, t interface{}, header Header) (OperationResponse, error) {
+	return c.exec(ctx, Query, operationName, query, variables, t, header)
 }
 
 // Mutation runs a mutation
 // operationName is optional
-func (c *Client) Mutation(ctx context.Context, operationName string, query string, variables map[string]interface{}, t interface{}) (OperationResponse, error) {
-	return c.doSingle(ctx, Mutation, operationName, query, variables, t)
+func (c *Client) Mutation(ctx context.Context, operationName string, query string, variables map[string]interface{}, t interface{}, header Header) (OperationResponse, error) {
+	return c.exec(ctx, Mutation, operationName, query, variables, t, header)
 }
 
 // Subscription starts a GQL subscription
 // operationName is optional
-func (c *Client) Subscription(ctx context.Context, operationName string, query string, variables map[string]interface{}) Response {
-	return c.do(Request{
+func (c *Client) Subscription(ctx context.Context, operationName string, query string, variables map[string]interface{}, header Header) Response {
+	return c.stream(Request{
 		Context:       ctx,
 		Operation:     Subscription,
 		Query:         query,
 		OperationName: operationName,
 		Variables:     variables,
+		Headers:       header,
 	})
 }
