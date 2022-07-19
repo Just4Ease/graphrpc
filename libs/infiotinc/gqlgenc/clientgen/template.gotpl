@@ -1,12 +1,7 @@
 {{- if .GenerateClient }}
-	{{ reserveImport "bytes" }}
 	{{ reserveImport "context" }}
-	{{ reserveImport "encoding/json" }}
 	{{ reserveImport "fmt" }}
-	{{ reserveImport "io" }}
-	{{ reserveImport "io/ioutil" }}
-	{{ reserveImport "path" }}
-	{{ reserveImport "time" }}
+	{{ reserveImport "log" }}
 
 
 	{{ reserveImport "github.com/borderlesshq/graphrpc" }}
