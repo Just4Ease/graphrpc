@@ -14,10 +14,10 @@ import (
 
 func main() {
 
-	ax, err := jetstream.Init(options.Options{
-		ServiceName: "gateway",
-		Address:     "localhost:4222",
-	})
+	ax, _ := jetstream.Init(
+		options.SetStoreName("gateway"),
+		options.SetAddress("localhost:4222"),
+	)
 
 	s := userService.NewServiceClient(ax, client.SetRemoteServiceName("ms-users"), client.SetRemoteGraphQLPath("graphql"), client.ApplyMsgPackEncoder())
 
@@ -26,13 +26,22 @@ func main() {
 	//	log.Fatal(err)
 	//}
 
-	v, err := s.ListUsers(context.Background(), userService.Filters{
-		Limit: 2,
-	}, nil)
-	if err != nil {
-		log.Fatal(err)
+	//v, err := s.Login(context.Background(), "justice@borderlesshq.com", "12121")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+
+	v, cancel := s.WatchUserStatus(context.Background(), "01g690x5geqp1aev2mtsj5mme3")
+	defer cancel()
+
+	for {
+		out := <-v
+		if out.Error != nil {
+			log.Fatalln(out.Error)
+		}
+
+		fmt.Println(out.Data.WatchUserStatus.String())
 	}
-	PrettyJson(v.ListUsers)
 }
 
 const (

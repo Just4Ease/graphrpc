@@ -61,6 +61,49 @@ func (c *Client) request(graphqlRequest Request) (*OperationResponse, error) {
 	return &opres, nil
 }
 
+func (c *Client) subscribe(graphqlRequest Request) (*OperationResponse, error) {
+	if graphqlRequest.Headers == nil {
+		graphqlRequest.Headers = make(Header)
+		graphqlRequest.Headers.Add("Content-Type", "application/json")
+	}
+
+	requestBodyByte, err := json.Marshal(NewOperationRequestFromRequest(graphqlRequest))
+	if err != nil {
+		return nil, err
+	}
+
+	//for _, ro := range h.RequestOptions {
+	//	ro(req)
+	//}
+
+	pubOptions := make([]options.PublisherOption, 0)
+	pubOptions = append(pubOptions, options.SetPubContentType("application/json"))
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
+
+	mg, err := c.axonConn.Request(c.BaseURL, requestBodyByte, pubOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	if mg.Type == messages.ErrorMessage {
+		return nil, errors.New(mg.Error)
+	}
+
+	var opres OperationResponse
+	err = json.Unmarshal(mg.Body, &opres)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(opres.Data) == 0 && len(opres.Errors) == 0 {
+		return nil, fmt.Errorf("no data nor errors, got: %.1000s", mg.Body)
+	}
+
+	return &opres, nil
+}
+
 func (c *Client) jsonFormField(w *multipart.Writer, name string, v interface{}) error {
 	fw, err := w.CreateFormField(name)
 	if err != nil {

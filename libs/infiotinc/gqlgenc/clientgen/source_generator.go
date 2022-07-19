@@ -243,7 +243,7 @@ func (r *SourceGenerator) namedType(path FieldPath, gen func() types.Type) types
 
 	if r.cfg.Models.Exists(fullname) && len(r.cfg.Models[fullname].Model) > 0 {
 		model := r.cfg.Models[fullname].Model[0]
-		fmt.Printf("%s is already declared: %v\n", fullname, model)
+		//fmt.Printf("%s is already declared: %v\n", fullname, model)
 
 		typ, err := r.binder.FindTypeFromName(model)
 		if err != nil {

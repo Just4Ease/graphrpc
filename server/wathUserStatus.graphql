@@ -1,0 +1,21 @@
+#u, err := r.service.GetUserById(ctx, id)
+#if err != nil {
+#return nil, err
+#}
+#
+#st := make(chan *Status)
+#go func() {
+#for {
+#s := Status(u.Status)
+#
+#st <- &s
+#time.Sleep(time.Second * 3)
+#}
+#}()
+#
+#return st, nil
+
+
+subscription watchUserStatus($id: String!){
+    watchUserStatus(id: $id)
+}

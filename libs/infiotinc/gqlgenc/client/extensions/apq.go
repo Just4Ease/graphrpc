@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client"
-	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client/transport"
 )
 
 const APQKey = "persistedQuery"
@@ -22,7 +21,7 @@ func (a *APQ) ExtensionName() string {
 	return "apq"
 }
 
-func (a *APQ) AroundRequest(req transport.Request, next client.RequestHandler) transport.Response {
+func (a *APQ) AroundRequest(req client.Request, next client.RequestHandler) client.Response {
 	if _, ok := req.Extensions[APQKey]; !ok {
 		sum := sha256.Sum256([]byte(req.Query))
 		req.Extensions[APQKey] = APQExtension{
@@ -31,7 +30,7 @@ func (a *APQ) AroundRequest(req transport.Request, next client.RequestHandler) t
 		}
 	}
 
-	res := next(transport.Request{
+	res := next(client.Request{
 		Context:       req.Context,
 		Operation:     req.Operation,
 		OperationName: req.OperationName,
@@ -39,9 +38,9 @@ func (a *APQ) AroundRequest(req transport.Request, next client.RequestHandler) t
 		Extensions:    req.Extensions,
 	})
 
-	nres := transport.NewProxyResponse()
+	nres := client.NewProxyResponse()
 
-	nres.Bind(res, func(opres transport.OperationResponse, send func()) {
+	nres.Bind(res, func(opres client.OperationResponse, send func()) {
 		for _, err := range opres.Errors {
 			if code, ok := err.Extensions["code"]; ok {
 				if code == "PERSISTED_QUERY_NOT_FOUND" {

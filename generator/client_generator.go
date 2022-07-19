@@ -257,7 +257,8 @@ func clientMutateHook(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 			jsonTag := fmt.Sprintf(`json:"%s%s"`, field.Name, omitEmpty)
 			msgpackTag := fmt.Sprintf(`msgpack:"%s%s"`, field.Name, omitEmpty)
 			graphql := fmt.Sprintf(`graphql:"%s%s"`, field.Name, omitEmpty)
-			tag := fmt.Sprintf(`%s %s %s`, jsonTag, msgpackTag, graphql)
+			cbor := fmt.Sprintf(`cbor:"%s%s"`, field.Name, omitEmpty)
+			tag := fmt.Sprintf(`%s %s %s %s`, jsonTag, msgpackTag, graphql, cbor)
 			field.Tag = tag
 		}
 	}
@@ -288,7 +289,6 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 		if mut, ok := p.(plugin.ConfigMutator); ok {
 			err := mut.MutateConfig(g.cfg.GQLConfig)
 			if err != nil {
-				fmt.Println(err, " sdfd")
 				return fmt.Errorf("%s failed: %w", p.Name(), err)
 			}
 		}

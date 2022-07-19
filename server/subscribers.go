@@ -15,13 +15,12 @@ import (
 func (s *Server) mountGraphSubscriber() {
 	err := s.axonClient.Reply(fmt.Sprintf("%s.%s", s.opts.serverName, s.opts.graphEntrypoint), func(mg *messages.Message) (*messages.Message, error) {
 		ctx := context.Background()
-
 		var params *graphql.RawParams
 		start := graphql.Now()
 		dec := json.NewDecoder(bytes.NewReader(mg.Body))
 		dec.UseNumber()
-		if err := dec.Decode(params); err != nil {
-			return nil, errors.WithMessage(err, "body could not be decoded")
+		if err := dec.Decode(&params); err != nil {
+			return nil, errors.Wrap(err, "body could not be decoded")
 		}
 
 		params.Headers = make(http.Header)

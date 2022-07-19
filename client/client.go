@@ -29,6 +29,10 @@ type Client = client.Client
 // Request represents an outgoing GraphQL request
 type Request = client.Request
 
+type Extension = client.Extension
+
+type RawExtensions = client.RawExtensions
+
 // NewClient creates a new http client wrapper
 func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	return client.NewClient(conn, options...)

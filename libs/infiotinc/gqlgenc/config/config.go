@@ -245,39 +245,6 @@ func (c *GenerateConfig) ShouldGenerateClient() bool {
 	return true
 }
 
-//// LoadSchema load and parses the schema from a local file or a remote server
-//func (c *Config) LoadSchema(ctx context.Context) error {
-//	var schema *ast.Schema
-//
-//	if c.SchemaFilename != nil {
-//		s, err := c.loadLocalSchema()
-//		if err != nil {
-//			return fmt.Errorf("load local schema failed: %w", err)
-//		}
-//
-//		schema = s
-//	} else {
-//		s, err := c.loadRemoteSchema(ctx)
-//		if err != nil {
-//			return fmt.Errorf("load remote schema failed: %w", err)
-//		}
-//
-//		schema = s
-//	}
-//
-//	if schema.Query == nil {
-//		schema.Query = &ast.Definition{
-//			Kind: ast.Object,
-//			Name: "Query",
-//		}
-//		schema.Types["Query"] = schema.Query
-//	}
-//
-//	c.GQLConfig.Schema = schema
-//
-//	return nil
-//}
-
 // LoadSchema load and parses the schema from a local file or a remote server
 func LoadSchema(ctx context.Context, c *Config, conn axon.EventStore, opts ...graphRPClient.Option) error {
 	var schema *ast.Schema
@@ -332,17 +299,12 @@ func loadRemoteSchema(ctx context.Context, c *Config, conn axon.EventStore, opts
 		return nil, err
 	}
 
-	//var res introspection.Query
-	//if err := rpc.Exec(ctx, "", document, &res, nil, nil); err != nil {
-	//	return nil, fmt.Errorf("introspection query failed: %w", err)
-	//}
-
 	var res introspection.Query
 	if _, err := rpc.Query(ctx, "", introspection.Introspection, nil, &res); err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 
-	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(fmt.Sprintf("graphrpc://%s.introspect", rpc.ServiceName()), res))
+	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(fmt.Sprintf("graphrpc://%s", rpc.BaseURL), res))
 	if err != nil && err.Error() != "" {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
@@ -484,5 +446,5 @@ func LoadClientGeneratorCfg(cfg *Config) (*Config, error) {
 		return nil, fmt.Errorf("config.exec: %w", err)
 	}
 
-	return (*Config)(cfg), nil
+	return cfg, nil
 }

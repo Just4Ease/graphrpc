@@ -586,6 +586,7 @@ func (c *Config) injectBuiltins() {
 		}},
 		"ID": {
 			Model: StringList{
+				"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.String",
 				"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.ID",
 				"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.IntID",
 			},
