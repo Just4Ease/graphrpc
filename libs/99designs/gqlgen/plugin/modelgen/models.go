@@ -258,6 +258,7 @@ func (m *Plugin) MutateConfig(cfg *config.Config) error {
 		Packages:        cfg.Packages,
 	})
 	if err != nil {
+		fmt.Println(err, " mdel rend..")
 		return err
 	}
 

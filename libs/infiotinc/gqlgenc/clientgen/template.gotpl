@@ -5,17 +5,45 @@
 	{{ reserveImport "fmt" }}
 	{{ reserveImport "io" }}
 	{{ reserveImport "io/ioutil" }}
-	{{ reserveImport "net/http" }}
-	{{ reserveImport "net/url" }}
 	{{ reserveImport "path" }}
 	{{ reserveImport "time" }}
 
-	{{ reserveImport "github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client" }}
-	{{ reserveImport "github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client/transport" }}
 
-	type Client struct {
-	    Client *client.Client
-	}
+	{{ reserveImport "github.com/borderlesshq/graphrpc" }}
+    {{ reserveImport "github.com/borderlesshq/axon/v2" }}
+    {{ reserveImport "github.com/borderlesshq/graphrpc/client" }}
+
+	type ServiceClient struct {
+    		conn *client.Client
+    }
+
+        {{- if .ClientInterfaceName }}
+    	func NewClient(conn axon.EventStore, options ...graphrpc.ClientOption) ({{ .ClientInterfaceName }}, error) {
+        {{- else }}
+        func NewClient(conn axon.EventStore, options ...graphrpc.ClientOption) (*ServiceClient, error) {
+        {{- end }}
+
+        	clientConn, err := graphrpc.NewClient(conn, options...)
+            if err != nil {
+                return nil, err
+            }
+             return &ServiceClient{conn: clientConn}, nil
+         }
+
+
+         {{- if .ClientInterfaceName }}
+        func NewServiceClient(conn axon.EventStore, options ...graphrpc.ClientOption) {{ .ClientInterfaceName }} {
+        {{- else }}
+        func NewServiceClient(conn axon.EventStore, options ...graphrpc.ClientOption) *ServiceClient {
+        {{- end }}
+
+            clientConn, err := graphrpc.NewClient(conn, options...)
+            if err != nil {
+                 log.Fatal(err)
+            }
+
+            return &ServiceClient{conn: clientConn}
+        }
 {{- end }}
 
 {{/* Greek character used to prevent name conflicts: */}}
@@ -96,10 +124,10 @@
             type Message{{ $op.Name|go }} struct {
                 Data       *{{ $op.ResponseType | ref }}
                 Error      error
-                Extensions transport.RawExtensions
+                Extensions client.RawExtensions
             }
 
-            func (Ξc *Client) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (<-chan Message{{ $op.Name|go }}, func()) {
+            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (<-chan Message{{ $op.Name|go }}, func()) {
                 Ξvars := map[string]interface{}{
                 {{- range $args := .VariableDefinitions}}
                     "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
@@ -107,7 +135,7 @@
                 }
 
                 { {{/* New block to prevent var names conflicts */}}
-                    res := Ξc.Client.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars)
+                    res := Ξc.conn.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars)
 
                     ch := make(chan Message{{ $op.Name|go }})
 
@@ -142,7 +170,7 @@
                 }
             }
         {{- else}}
-            func (Ξc *Client) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (*{{ $op.ResponseType | ref }}, transport.OperationResponse, error) {
+            func (Ξc *ServiceClient) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (*{{ $op.ResponseType | ref }},  error) {
                 Ξvars := map[string]interface{}{
                 {{- range $args := .VariableDefinitions}}
                     "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
@@ -151,12 +179,17 @@
 
                 { {{/* New block to prevent var names conflicts */}}
                     var data {{ $op.ResponseType | ref }}
-                    res, err := Ξc.Client.{{ $op.OperationType|ucFirst }}(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars, &data)
+                    res, err := Ξc.conn.{{ $op.OperationType|ucFirst }}(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars, &data)
                     if err != nil {
-                        return nil, transport.OperationResponse{}, err
+                        return nil, err
                     }
 
-                    return &data, res, nil
+
+                    if res.Errors != nil && len(res.Errors) > 0 {
+                    	return nil, res.Errors
+                    }
+
+                    return &data, nil
                 }
             }
         {{- end}}

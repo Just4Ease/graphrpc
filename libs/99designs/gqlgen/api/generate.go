@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
 	"regexp"
 	"syscall"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/federation"
-	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/resolvergen"
 )
 

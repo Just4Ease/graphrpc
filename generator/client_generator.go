@@ -182,14 +182,10 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 		}
 	}
 
-	//model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
+	model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
 	generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, clientGenerator.PackagePath))
 	cfgParams := &config.Config{
 		//SchemaFilename: schema,
-		//Model: genCfg.PackageConfig{
-		//	Filename: model,
-		//	Package:  clientGenerator.PackageName,
-		//},
 		Client: config.Client{
 			PackageConfig: genCfg.PackageConfig{
 				Filename: generated,
@@ -223,6 +219,10 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 	}
 
 	clientGenerator.cfg = cfg
+	clientGenerator.cfg.GQLConfig.Model = genCfg.PackageConfig{
+		Filename: model,
+		Package:  clientGenerator.PackageName,
+	}
 	c.list = append(c.list, clientGenerator)
 	return nil
 }
@@ -288,6 +288,7 @@ func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.O
 		if mut, ok := p.(plugin.ConfigMutator); ok {
 			err := mut.MutateConfig(g.cfg.GQLConfig)
 			if err != nil {
+				fmt.Println(err, " sdfd")
 				return fmt.Errorf("%s failed: %w", p.Name(), err)
 			}
 		}
