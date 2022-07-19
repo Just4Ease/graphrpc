@@ -1,0 +1,164 @@
+{{- if .GenerateClient }}
+	{{ reserveImport "bytes" }}
+	{{ reserveImport "context" }}
+	{{ reserveImport "encoding/json" }}
+	{{ reserveImport "fmt" }}
+	{{ reserveImport "io" }}
+	{{ reserveImport "io/ioutil" }}
+	{{ reserveImport "net/http" }}
+	{{ reserveImport "net/url" }}
+	{{ reserveImport "path" }}
+	{{ reserveImport "time" }}
+
+	{{ reserveImport "github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client" }}
+	{{ reserveImport "github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client/transport" }}
+
+	type Client struct {
+	    Client *client.Client
+	}
+{{- end }}
+
+{{/* Greek character used to prevent name conflicts: */}}
+{{/* > prefix with Ξ */}}
+{{/* > ctх (х in cyrillic alphabet) because it is user facing */}}
+
+{{- range $_, $element := .Types }}
+    // {{ .Path.Kind }}: {{ .Path.String }}
+	type {{ .Name }} {{ .Type | ref }}
+
+    {{- if .IsInputMap }}
+        func New{{ $element.Name }}({{- range $f := .MapReq }}{{$f.Name}} {{$f.Type|ref}},{{- end }}) {{ $element.Name }} {
+            return map[string]interface{}{
+            {{- range $f := .MapReq }}
+                "{{$f.Name}}": {{$f.Name}},
+            {{- end }}
+            }
+        }
+
+        {{- range $f := .MapOpt }}
+            func (t {{ $element.Name }}) With{{$f.Name|go}}(v {{$f.Type|ref}}) {{ $element.Name }} {
+                t["{{$f.Name}}"] = v
+                return t
+            }
+        {{- end }}
+    {{- end }}
+
+    {{- if .UnmarshalTypes }}
+    func (t *{{ .Name }}) UnmarshalJSON(data []byte) error {
+        type ΞAlias {{ .Name }}
+        var r ΞAlias
+
+        err := json.Unmarshal(data, &r)
+        if err != nil {
+            return err
+        }
+
+        *t = {{ .Name }}(r)
+
+        switch r.Typename {
+        {{- range $typename, $target := .UnmarshalTypes }}
+            case "{{ $typename }}":
+                var a {{ $target.Type | ref }}
+                err = json.Unmarshal(data, &a)
+                if err != nil {
+                    return err
+                }
+
+                t.{{ $target.Name }} = &a
+        {{- end }}
+        }
+
+        return nil
+    }
+    {{- end }}
+
+    {{- if .Consts }}
+        const (
+        {{- range $const := .Consts }}
+            {{$const.Name}} {{$const.Type|ref}} = {{$const.Val.ExactString}}
+        {{- end }}
+        )
+    {{- end }}
+{{- end }}
+
+// Pointer helpers
+{{- range $_, $element := .PtrTypes }}
+    func {{ $element.Name|go }}Ptr(v {{ $element.Type|ref }}) *{{ $element.Type|ref }} {
+        return &v
+    }
+{{- end }}
+
+{{- range $op := .Operations }}
+	const {{ $op.Name|go }}Document = `{{ $op.Operation }}`
+
+	{{- if $.GenerateClient }}
+        {{- if eq $op.OperationType "subscription" }}
+            type Message{{ $op.Name|go }} struct {
+                Data       *{{ $op.ResponseType | ref }}
+                Error      error
+                Extensions transport.RawExtensions
+            }
+
+            func (Ξc *Client) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (<-chan Message{{ $op.Name|go }}, func()) {
+                Ξvars := map[string]interface{}{
+                {{- range $args := .VariableDefinitions}}
+                    "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
+                {{- end }}
+                }
+
+                { {{/* New block to prevent var names conflicts */}}
+                    res := Ξc.Client.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars)
+
+                    ch := make(chan Message{{ $op.Name|go }})
+
+                    go func() {
+                        for res.Next() {
+                            opres := res.Get()
+
+                            var msg Message{{ $op.Name|go }}
+                            if len(opres.Errors) > 0 {
+                                msg.Error = opres.Errors
+                            }
+
+                            err := opres.UnmarshalData(&msg.Data)
+                            if err != nil && msg.Error == nil {
+                                msg.Error = err
+                            }
+
+                            msg.Extensions = opres.Extensions
+
+                            ch <- msg
+                        }
+
+                        if err := res.Err(); err != nil {
+                            ch <- Message{{ $op.Name|go }} {
+                                Error: err,
+                            }
+                        }
+                        close(ch)
+                    }()
+
+                    return ch, res.Close
+                }
+            }
+        {{- else}}
+            func (Ξc *Client) {{ $op.Name|go }} (ctх context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}) (*{{ $op.ResponseType | ref }}, transport.OperationResponse, error) {
+                Ξvars := map[string]interface{}{
+                {{- range $args := .VariableDefinitions}}
+                    "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
+                {{- end }}
+                }
+
+                { {{/* New block to prevent var names conflicts */}}
+                    var data {{ $op.ResponseType | ref }}
+                    res, err := Ξc.Client.{{ $op.OperationType|ucFirst }}(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, Ξvars, &data)
+                    if err != nil {
+                        return nil, transport.OperationResponse{}, err
+                    }
+
+                    return &data, res, nil
+                }
+            }
+        {{- end}}
+	{{- end}}
+{{- end}}

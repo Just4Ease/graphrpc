@@ -10,9 +10,8 @@ import (
 	genCfg "github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/codegen/config"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
-	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/clientgen"
-	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/config"
-	"github.com/borderlesshq/graphrpc/utils"
+	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/clientgen"
+	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/config"
 	"github.com/gookit/color"
 	"os"
 	"path"
@@ -30,8 +29,9 @@ type ClientGenerator struct {
 	QueryParamsSuffix            string
 	MutationParamsPrefix         string
 	MutationParamsSuffix         string
+	SubscriptionParamsPrefix     string
+	SubscriptionParamsSuffix     string
 	Headers                      map[string]string
-	ClientV2                     bool
 	cfg                          *config.Config
 	Conn                         axon.EventStore
 }
@@ -88,6 +88,22 @@ func GeneratedMutationsPrefix(prefix string) ClientGeneratorOption {
 func GeneratedMutationsSuffix(suffix string) ClientGeneratorOption {
 	return func(o *ClientGenerator) error {
 		o.MutationParamsSuffix = suffix
+		return nil
+	}
+}
+
+// GeneratedSubscriptionsPrefix is an Option to set prefix of your generated subscriptions' input params.
+func GeneratedSubscriptionsPrefix(prefix string) ClientGeneratorOption {
+	return func(o *ClientGenerator) error {
+		o.SubscriptionParamsPrefix = prefix
+		return nil
+	}
+}
+
+// GeneratedSubscriptionsSuffix is an Option to set suffix of your generated subscriptions' input params.
+func GeneratedSubscriptionsSuffix(suffix string) ClientGeneratorOption {
+	return func(o *ClientGenerator) error {
+		o.SubscriptionParamsSuffix = suffix
 		return nil
 	}
 }
@@ -166,41 +182,39 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 		}
 	}
 
-	model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
+	//model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, clientGenerator.PackagePath))
 	generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, clientGenerator.PackagePath))
-
 	cfgParams := &config.Config{
 		//SchemaFilename: schema,
-		Model: genCfg.PackageConfig{
-			Filename: model,
-			Package:  clientGenerator.PackageName,
-		},
-		Client: genCfg.PackageConfig{
-			Filename: generated,
-			Package:  clientGenerator.PackageName,
+		//Model: genCfg.PackageConfig{
+		//	Filename: model,
+		//	Package:  clientGenerator.PackageName,
+		//},
+		Client: config.Client{
+			PackageConfig: genCfg.PackageConfig{
+				Filename: generated,
+				Package:  clientGenerator.PackageName,
+			},
 		},
 		//Models: nil,
 		Endpoint: &config.EndPointConfig{
 			URL:     clientGenerator.RemoteServiceGraphEntrypoint,
 			Headers: clientGenerator.Headers,
 		},
-		Generate: nil,
-		Query:    query,
+		Query: query,
 	}
 
-	if clientGenerator.ClientV2 {
-		cfgParams.Generate = &config.GenerateConfig{
-			Prefix: &config.NamingConfig{
-				Query:    clientGenerator.QueryParamsPrefix,
-				Mutation: clientGenerator.MutationParamsPrefix,
-			},
-			Suffix: &config.NamingConfig{
-				Query:    clientGenerator.QueryParamsSuffix,
-				Mutation: clientGenerator.MutationParamsSuffix,
-			},
-			Client:   nil,
-			ClientV2: true,
-		}
+	cfgParams.Generate = &config.GenerateConfig{
+		Prefix: &config.NamingConfig{
+			Query:        clientGenerator.QueryParamsPrefix,
+			Mutation:     clientGenerator.MutationParamsPrefix,
+			Subscription: clientGenerator.SubscriptionParamsPrefix,
+		},
+		Suffix: &config.NamingConfig{
+			Query:        clientGenerator.QueryParamsSuffix,
+			Mutation:     clientGenerator.MutationParamsSuffix,
+			Subscription: clientGenerator.SubscriptionParamsSuffix,
+		},
 	}
 
 	cfg, err := config.LoadClientGeneratorCfg(cfgParams)
@@ -216,15 +230,15 @@ func (c *Clients) AddClient(opts ...ClientGeneratorOption) error {
 func (c *Clients) Generate() {
 	ctx := context.Background()
 	for _, g := range c.list {
-		clientGen := api.AddPlugin(clientgen.New(g.cfg.Query, g.cfg.Client, g.cfg.Generate, g.RemoteServiceName, g.RemoteServiceGraphEntrypoint))
+		clientGen := api.AddPlugin(clientgen.New(g.cfg, g.RemoteServiceName, g.RemoteServiceGraphEntrypoint))
 		if err := generateClientCode(ctx, g, clientGen); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "[%s] %+v", g.RemoteServiceName, err.Error())
 			os.Exit(4)
 		}
 
-		model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
+		//model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
 		//generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
-		utils.FixFieldAlignment(model)
+		//utils.FixFieldAlignment(model)
 		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }
@@ -253,12 +267,11 @@ func clientMutateHook(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 func generateClientCode(ctx context.Context, g *ClientGenerator, option ...api.Option) error {
 	var plugins []plugin.Plugin
 
-	if g.cfg.Model.IsDefined() {
-		p := modelgen.Plugin{
-			MutateHook: clientMutateHook,
-		}
-		plugins = append(plugins, &p)
+	p := modelgen.Plugin{
+		MutateHook: clientMutateHook,
 	}
+	plugins = append(plugins, &p)
+
 	for _, o := range option {
 		o(g.cfg.GQLConfig, &plugins)
 	}

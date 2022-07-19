@@ -1,0 +1,25 @@
+client:
+  filename: ./client/gen_client.go
+  package: client
+  extra_types:
+    - SomeExtraType
+    - Cyclic2_1
+models:
+  Int:
+    model: github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Int64
+  DateTime:
+    model: github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql.Time
+  GetRoomCustom:
+    model: example/somelib.CustomRoom
+  Upload:
+    model: github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client/transport.Upload
+  AsMapInput:
+    as_map: true
+  Value1:
+    model: example/client.Value1
+  Value2:
+    model: example/client.Value2
+schema:
+  - schema.graphql
+query:
+  - query.graphql

@@ -20,9 +20,9 @@ func Generate(cfg *config.Config, option ...Option) error {
 	}
 
 	plugins := []plugin.Plugin{}
-	//if cfg.Model.IsDefined() {
-	plugins = append(plugins, modelgen.New())
-	//}
+	if cfg.Model.IsDefined() {
+		plugins = append(plugins, modelgen.New())
+	}
 	plugins = append(plugins, resolvergen.New())
 	if cfg.Federation.IsDefined() {
 		if cfg.Federation.Version == 0 { // default to using the user's choice of version, but if unset, try to sort out which federation version to use

@@ -2,7 +2,7 @@ package client
 
 import (
 	"github.com/borderlesshq/axon/v2"
-	"github.com/borderlesshq/graphrpc/libs/Yamashou/gqlgenc/client"
+	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/client"
 )
 
 type Options = client.Options
