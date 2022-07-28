@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/errcode"
 	"github.com/borderlesshq/graphrpc/utils"
+	"github.com/pkg/errors"
 	"mime"
 	"net/http"
 	"time"
@@ -156,6 +158,64 @@ func (s *Server) ExecGraphCommand(ctx context.Context, params *graphql.RawParams
 	responses, responseContext := s.exec.DispatchOperation(ctx, rc)
 	response = responses(responseContext)
 	return response, nil
+}
+
+type SubscriptionHandler struct {
+	operationContext *graphql.OperationContext
+	exec             *executor.Executor
+	ctx              context.Context
+	Response         *graphql.Response
+	PanicHandler     func() *gqlerror.Error
+}
+
+func (s SubscriptionHandler) Exec() (graphql.ResponseHandler, context.Context) {
+	return s.exec.DispatchOperation(s.ctx, s.operationContext)
+}
+
+func (s *Server) ExecGraphSubscriptionsCommand(ctx context.Context, params *graphql.RawParams) (SubscriptionHandler, error) {
+	ctx = graphql.StartOperationTrace(ctx)
+	rc, err := s.exec.CreateOperationContext(ctx, params)
+	if err != nil {
+		resp := s.exec.DispatchError(graphql.WithOperationContext(ctx, rc), err)
+		switch errcode.GetErrorKind(err) {
+		case errcode.KindProtocol:
+			return SubscriptionHandler{}, resp.Errors
+		default:
+			return SubscriptionHandler{Response: &graphql.Response{Errors: err}}, nil
+		}
+	}
+
+	ctx = graphql.WithOperationContext(ctx, rc)
+
+	ctx, cancel := context.WithCancel(ctx)
+	//c.mu.Lock()
+	//c.active[msg.id] = cancel
+	//c.mu.Unlock()
+
+	subHandler := SubscriptionHandler{}
+	subHandler.operationContext = rc
+	subHandler.ctx = ctx
+	subHandler.exec = s.exec
+	subHandler.PanicHandler = func() *gqlerror.Error {
+		defer cancel()
+		if r := recover(); r != nil {
+			err := subHandler.operationContext.Recover(ctx, r)
+			var gqlerr *gqlerror.Error
+			if !errors.As(err, &gqlerr) {
+				gqlerr = &gqlerror.Error{}
+				if err != nil {
+					gqlerr.Message = err.Error()
+					return gqlerr
+				}
+			}
+		}
+		//c.complete(msg.id)
+		//c.mu.Lock()
+		//delete(c.active, msg.id)
+		//c.mu.Unlock()
+		return nil
+	}
+	return subHandler, nil
 }
 
 func sendError(w http.ResponseWriter, code int, errors ...*gqlerror.Error) {

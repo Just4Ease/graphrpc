@@ -130,6 +130,7 @@ type Server struct {
 	graphListener        net.Listener    // graphql listener
 	router               *chi.Mux        // chi router.
 	mu                   sync.Mutex
+	streams              streams
 	applyMsgpackEncoding bool
 }
 
@@ -197,7 +198,7 @@ func (s *Server) Serve() error {
 		}
 	}
 
-	go s.mountGraphSubscriber()
+	go s.mountGraphQueryAndMutationsSubscriber()
 	return s.mountGraphHTTPServer()
 }
 
