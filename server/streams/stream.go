@@ -1,11 +1,8 @@
-package server
+package streams
 
 import (
-	"encoding/json"
 	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/axon/v2/options"
-	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
-	"github.com/vektah/gqlparser/v2/gqlerror"
 	"time"
 )
 
@@ -15,12 +12,15 @@ const (
 	closeSig = "close"
 )
 
-func (s stream) serve(closeChan chan<- string) {
-	s.closer = make(chan bool)
+func (s *stream) serve(closeChan chan<- cmd) {
 	defer func() {
 		// This is used to signal what stream should be cleaned up from the streams.subscribers[]
-		closeChan <- s.streamChannel
+		closeChan <- cmd{
+			flow: closeFlow,
+			str:  s,
+		}
 	}()
+
 	// Check heartbeat of caller if caller is alive.
 	go func() {
 		defer s.close()
@@ -54,65 +54,23 @@ func (s stream) serve(closeChan chan<- string) {
 		}
 	}()
 
-	go func() {
-		defer func() {
-			gqlerr := s.subscriptionHandler.PanicHandler()
-			if gqlerr != nil {
-				s.sendErr()
-			}
-		}()
-		responses, ctx := s.subscriptionHandler.Exec()
+	go s.streamHandler(s.send, s.close)
 
-		for {
-			response := responses(ctx)
-			if response == nil {
-				break
-			}
-
-			s.sendResponse(response)
-		}
-	}()
-
-	s.wait()
+	<-s.wait()
 	// NOTE: defer() func above is called before this function exits.
 	//Thus signalling the cleaner to remove this stream from the list of streams.
 }
 
-func (s stream) close() {
+func (s *stream) close() {
 	close(s.closer)
 }
 
-func (s stream) closeWithoutSignal() {
-	close(s.closer)
+func (s *stream) wait() <-chan bool {
+	return s.closer
 }
 
-func (s stream) wait() {
-	<-s.closer
-}
-
-func (s stream) sendErr(errors ...*gqlerror.Error) {
-	errs := make([]error, len(errors))
-	for i, err := range errors {
-		errs[i] = err
-	}
-	b, err := json.Marshal(errs)
-	if err != nil {
-		panic(err)
-	}
-
-	_ = s.send(b)
-}
-
-func (s stream) sendResponse(response *graphql.Response) {
-	// TODO: Ensure we can use custom encoding here.
-	b, err := json.Marshal(response)
-	if err != nil {
-		panic(err)
-	}
-
-	_ = s.send(b)
-}
-
-func (s stream) send(payload []byte) error {
-	return s.pipe.Publish(s.streamChannel, payload)
+func (s *stream) send(payload []byte) error {
+	// DisablePubStreaming ensures we don't store this stream in the eventStore.
+	// They are fire and forget.
+	return s.pipe.Publish(s.streamChannel, payload, options.DisablePubStreaming())
 }

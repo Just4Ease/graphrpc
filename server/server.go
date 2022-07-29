@@ -20,6 +20,7 @@ import (
 	"github.com/borderlesshq/axon/v2"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/handler"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/playground"
+	"github.com/borderlesshq/graphrpc/server/streams"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
@@ -28,7 +29,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 )
 
 type preRunHook func() error
@@ -129,8 +129,7 @@ type Server struct {
 	graphHandler         *handler.Server // graphql/rest handler
 	graphListener        net.Listener    // graphql listener
 	router               *chi.Mux        // chi router.
-	mu                   sync.Mutex
-	streams              streams
+	streams              *streams.Streams
 	applyMsgpackEncoding bool
 }
 
@@ -154,7 +153,6 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 	}
 
 	return &Server{
-		mu:                   sync.Mutex{},
 		axonClient:           axon,
 		opts:                 opts,
 		graphHandler:         h,
@@ -199,6 +197,7 @@ func (s *Server) Serve() error {
 	}
 
 	go s.mountGraphQueryAndMutationsSubscriber()
+	s.streams = streams.MakeStreams(s.axonClient)
 	return s.mountGraphHTTPServer()
 }
 

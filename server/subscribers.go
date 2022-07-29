@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
+	"github.com/borderlesshq/graphrpc/server/streams"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"log"
 	"net/http"
-	"time"
 )
 
 func (s *Server) mountGraphQueryAndMutationsSubscriber() {
@@ -55,6 +55,18 @@ func (s *Server) mountGraphQueryAndMutationsSubscriber() {
 
 func (s *Server) mountGraphSubscriptionsSubscriber() {
 	err := s.axonClient.Reply(fmt.Sprintf("%s.%s-subscriptions", s.opts.serverName, s.opts.graphEntrypoint), func(mg *messages.Message) (*messages.Message, error) {
+		if streamChannel, ok := mg.Header["streamChannel"]; ok {
+			heartBeatChannel, err := s.streams.RunStream(streamChannel)
+			if err != nil {
+				return nil, err
+			}
+
+			mg.Header["streamChannel"] = streamChannel
+			mg.Header["heartBeatChannel"] = heartBeatChannel
+			mg.WithBody(nil)
+			return mg.WithBody([]byte("done")), nil
+		}
+
 		ctx := context.Background()
 		var params *graphql.RawParams
 		start := graphql.Now()
@@ -84,12 +96,30 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 			return mg.WithBody(b), nil
 		}
 
-		streamChannel, heartBeatChannel := s.streams.newStream(s.axonClient, &subHandler)
+		// This part has opened up the stream to service...
+		streamChannel, heartBeatChannel := s.streams.NewStream(func(send streams.Send, streamCloser streams.Close) {
+
+			defer func() {
+				gqlErr := subHandler.PanicHandler()
+				if gqlErr != nil {
+					sendErr(send, gqlErr)
+				}
+			}()
+			responses, ctx := subHandler.Exec()
+
+			for {
+				response := responses(ctx)
+				if response == nil {
+					break
+				}
+
+				sendResponse(send, response)
+			}
+		})
 
 		mg.Header["streamChannel"] = streamChannel
 		mg.Header["heartBeatChannel"] = heartBeatChannel
 		mg.WithBody(nil)
-
 		return mg, nil
 	})
 
@@ -98,63 +128,26 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 	}
 }
 
-func (s *Server) subscribe(start time.Time, msg *message) {
-	ctx := graphql.StartOperationTrace(context.Background())
-	var params *graphql.RawParams
-	//if err := jsonDecode(bytes.NewReader(msg.payload), &params); err != nil {
-	//	c.sendError(msg.id, &gqlerror.Error{Message: "invalid json"})
-	//	c.complete(msg.id)
-	//	return
-	//}
-
-	params.ReadTime = graphql.TraceTiming{
-		Start: start,
-		End:   graphql.Now(),
+func sendErr(send streams.Send, errors ...*gqlerror.Error) {
+	errs := make([]error, len(errors))
+	for i, err := range errors {
+		errs[i] = err
+	}
+	b, err := json.Marshal(errs)
+	if err != nil {
+		panic(err)
 	}
 
-	ctx = graphql.WithOperationContext(ctx, rc)
+	_ = send(b)
+}
 
-	if c.initPayload != nil {
-		ctx = withInitPayload(ctx, c.initPayload)
+func sendResponse(send streams.Send, response *graphql.Response) {
+	// TODO: Ensure we can use custom encoding here.
+	b, err := json.Marshal(response)
+	if err != nil {
+		//streamCloser() // Close before panic.
+		panic(err) // TODO: remove this panic bros.
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	c.mu.Lock()
-	c.active[msg.id] = cancel
-	c.mu.Unlock()
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				err := rc.Recover(ctx, r)
-				var gqlerr *gqlerror.Error
-				if !errors.As(err, &gqlerr) {
-					gqlerr = &gqlerror.Error{}
-					if err != nil {
-						gqlerr.Message = err.Error()
-					}
-				}
-				c.sendError(msg.id, gqlerr)
-			}
-			c.complete(msg.id)
-			c.mu.Lock()
-			delete(c.active, msg.id)
-			c.mu.Unlock()
-			cancel()
-		}()
-
-		responses, ctx := c.exec.DispatchOperation(ctx, rc)
-		for {
-			response := responses(ctx)
-			if response == nil {
-				break
-			}
-
-			c.sendResponse(msg.id, response)
-
-			s.axonClient.Publish(msg.id, response)
-		}
-
-		// complete and context cancel comes from the defer
-	}()
+	_ = send(b)
 }
