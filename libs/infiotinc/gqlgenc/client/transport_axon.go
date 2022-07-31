@@ -83,6 +83,13 @@ func (c *Client) subscribe(graphqlRequest Request) (*OperationResponse, error) {
 	}
 
 	mg, err := c.axonConn.Request(c.BaseURL, requestBodyByte, pubOptions...)
+
+	//if err := c.axonConn.Subscribe(c.BaseURL, func(event axon.Event) {
+	//
+	//}); err != nil {
+	//	fmt.Println(err)
+	//}
+
 	if err != nil {
 		return nil, err
 	}

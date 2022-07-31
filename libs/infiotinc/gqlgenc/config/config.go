@@ -300,7 +300,7 @@ func loadRemoteSchema(ctx context.Context, c *Config, conn axon.EventStore, opts
 	}
 
 	var res introspection.Query
-	if _, err := rpc.Query(ctx, "", introspection.Introspection, nil, &res); err != nil {
+	if _, err := rpc.Query(ctx, "", introspection.Introspection, nil, &res, nil); err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 

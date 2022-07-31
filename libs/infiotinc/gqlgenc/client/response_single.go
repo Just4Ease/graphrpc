@@ -18,19 +18,8 @@ func NewSingleResponse(or OperationResponse) *SingleResponse {
 
 func NewErrorResponse(err error) Response {
 	res := NewSingleResponse(OperationResponse{})
-	res.CloseWithError(err)
 
 	return res
-}
-
-func (r *SingleResponse) Next() bool {
-	if r.calledNext || r.err != nil {
-		return false
-	}
-
-	r.calledNext = true
-
-	return true
 }
 
 func (r *SingleResponse) Get() OperationResponse {
@@ -48,4 +37,8 @@ func (r *SingleResponse) Done() <-chan struct{} {
 	r.dm.Unlock()
 
 	return r.dc
+}
+
+func (r *SingleResponse) Err() error {
+	return r.or.Errors
 }
