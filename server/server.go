@@ -20,7 +20,6 @@ import (
 	"github.com/borderlesshq/axon/v2"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/handler"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql/playground"
-	"github.com/borderlesshq/graphrpc/server/streams"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gookit/color"
@@ -129,7 +128,7 @@ type Server struct {
 	graphHandler         *handler.Server // graphql/rest handler
 	graphListener        net.Listener    // graphql listener
 	router               *chi.Mux        // chi router.
-	streams              *streams.Streams
+	streamer             axon.Streamer
 	applyMsgpackEncoding bool
 }
 
@@ -152,10 +151,13 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 		}
 	}
 
+	// Using necessary defaults.
+	streamer, _ := axon.NewStreamer()
 	return &Server{
 		axonClient:           axon,
 		opts:                 opts,
 		graphHandler:         h,
+		streamer:             streamer,
 		applyMsgpackEncoding: opts.applyMsgpackEncoding,
 	}
 }
@@ -197,7 +199,6 @@ func (s *Server) Serve() error {
 	}
 
 	go s.mountGraphQueryAndMutationsSubscriber()
-	s.streams = streams.MakeStreams(s.axonClient)
 	return s.mountGraphHTTPServer()
 }
 

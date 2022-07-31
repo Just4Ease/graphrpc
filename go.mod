@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Yamashou/gqlgenc v0.0.8
-	github.com/borderlesshq/axon/v2 v2.0.8
+	github.com/borderlesshq/axon/v2 v2.0.9
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/gookit/color v1.5.0

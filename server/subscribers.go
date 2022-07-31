@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/borderlesshq/axon/v2"
 	"github.com/borderlesshq/axon/v2/messages"
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/graphql"
-	"github.com/borderlesshq/graphrpc/server/streams"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"log"
@@ -55,18 +55,6 @@ func (s *Server) mountGraphQueryAndMutationsSubscriber() {
 
 func (s *Server) mountGraphSubscriptionsSubscriber() {
 	err := s.axonClient.Reply(fmt.Sprintf("%s.%s-subscriptions", s.opts.serverName, s.opts.graphEntrypoint), func(mg *messages.Message) (*messages.Message, error) {
-		if streamChannel, ok := mg.Header["streamChannel"]; ok {
-			heartBeatChannel, err := s.streams.RunStream(streamChannel)
-			if err != nil {
-				return nil, err
-			}
-
-			mg.Header["streamChannel"] = streamChannel
-			mg.Header["heartBeatChannel"] = heartBeatChannel
-			mg.WithBody(nil)
-			return mg.WithBody([]byte("done")), nil
-		}
-
 		ctx := context.Background()
 		var params *graphql.RawParams
 		start := graphql.Now()
@@ -97,8 +85,7 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 		}
 
 		// This part has opened up the stream to service...
-		streamChannel, heartBeatChannel := s.streams.NewStream(func(send streams.Send, streamCloser streams.Close) {
-
+		stream := s.streamer.NewStream(func(send axon.Send, c axon.Close) {
 			defer func() {
 				gqlErr := subHandler.PanicHandler()
 				if gqlErr != nil {
@@ -117,9 +104,7 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 			}
 		})
 
-		mg.Header["streamChannel"] = streamChannel
-		mg.Header["heartBeatChannel"] = heartBeatChannel
-		mg.WithBody(nil)
+		mg.WithBody([]byte(stream.ID()))
 		return mg, nil
 	})
 
@@ -128,7 +113,7 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 	}
 }
 
-func sendErr(send streams.Send, errors ...*gqlerror.Error) {
+func sendErr(send axon.Send, errors ...*gqlerror.Error) {
 	errs := make([]error, len(errors))
 	for i, err := range errors {
 		errs[i] = err
@@ -141,7 +126,7 @@ func sendErr(send streams.Send, errors ...*gqlerror.Error) {
 	_ = send(b)
 }
 
-func sendResponse(send streams.Send, response *graphql.Response) {
+func sendResponse(send axon.Send, response *graphql.Response) {
 	// TODO: Ensure we can use custom encoding here.
 	b, err := json.Marshal(response)
 	if err != nil {

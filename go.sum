@@ -12,6 +12,8 @@ github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0 h1:jfIu9sQUG6Ig
 github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0/go.mod h1:t2tdKJDJF9BV14lnkjHmOQgcvEKgtqs5a1N3LNdJhGE=
 github.com/borderlesshq/axon/v2 v2.0.8 h1:ntem0myf5w7SXAqPrdn0twM9zbfUu5nu9mkt6npeR0I=
 github.com/borderlesshq/axon/v2 v2.0.8/go.mod h1:+DRpg/sq92fnlsI3BmD5cxlM7ZpXpKLQl37Ulr67Bp4=
+github.com/borderlesshq/axon/v2 v2.0.9 h1:tqLSOGmQdFdCqlKIpv3MyC8KOIQR5H1Wbb3MR3IWEv0=
+github.com/borderlesshq/axon/v2 v2.0.9/go.mod h1:+DRpg/sq92fnlsI3BmD5cxlM7ZpXpKLQl37Ulr67Bp4=
 github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHHBfMQ6w=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=

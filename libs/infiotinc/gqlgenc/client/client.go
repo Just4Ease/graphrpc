@@ -132,7 +132,7 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 
 	return &Client{
 		axonConn:            conn,
-		BaseURL:             fmt.Sprintf("%s.%s", opts.remoteServiceName, opts.remoteGraphEntrypoint),
+		BaseURL:             opts.remoteServiceName + "." + opts.remoteGraphEntrypoint,
 		opts:                opts,
 		Headers:             opts.Headers,
 		applyMsgPackEncoder: opts.applyMsgpackEncoder,
