@@ -89,7 +89,10 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 			defer func() {
 				gqlErr := subHandler.PanicHandler()
 				if gqlErr != nil {
-					sendErr(send, gqlErr)
+					if err := sendErr(send, gqlErr); err != nil {
+						log.Printf("failed to err response: %s", err)
+						return
+					}
 				}
 			}()
 			responses, ctx := subHandler.Exec()
@@ -100,7 +103,10 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 					break
 				}
 
-				sendResponse(send, response)
+				if err := sendResponse(send, response); err != nil {
+					log.Printf("failed to send response: %s", err)
+					return
+				}
 			}
 		})
 
@@ -114,26 +120,26 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 	}
 }
 
-func sendErr(send axon.Send, errors ...*gqlerror.Error) {
+func sendErr(send axon.Send, errors ...*gqlerror.Error) error {
 	errs := make([]error, len(errors))
 	for i, err := range errors {
 		errs[i] = err
 	}
 	b, err := json.Marshal(errs)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	_ = send(b)
+	return send(b)
 }
 
-func sendResponse(send axon.Send, response *graphql.Response) {
+func sendResponse(send axon.Send, response *graphql.Response) error {
 	// TODO: Ensure we can use custom encoding here.
 	b, err := json.Marshal(response)
 	if err != nil {
 		//streamCloser() // Close before panic.
-		panic(err) // TODO: remove this panic bros.
+		return err
 	}
 
-	_ = send(b)
+	return send(b)
 }

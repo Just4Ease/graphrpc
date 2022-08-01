@@ -83,7 +83,7 @@ func (c *Client) subscribe(graphqlRequest Request) (*OperationResponse, <-chan [
 		return nil, nil, nil, fmt.Errorf("encode: %w", err)
 	}
 
-	mg, err := c.axonConn.Request(c.BaseURL+".subscriptions", requestBodyByte, pubOptions...)
+	mg, err := c.axonConn.Request(c.BaseURL+"-subscriptions", requestBodyByte, pubOptions...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
