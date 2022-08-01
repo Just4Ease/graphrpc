@@ -104,7 +104,8 @@ func (s *Server) mountGraphSubscriptionsSubscriber() {
 			}
 		})
 
-		mg.WithBody([]byte(stream.ID()))
+		mg.Header["stream"] = stream.ID()
+		mg.WithBody(nil)
 		return mg, nil
 	})
 

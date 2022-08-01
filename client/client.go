@@ -33,6 +33,8 @@ type Extension = client.Extension
 
 type RawExtensions = client.RawExtensions
 
+type OperationResponse = client.OperationResponse
+
 // NewClient creates a new http client wrapper
 func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 	return client.NewClient(conn, options...)

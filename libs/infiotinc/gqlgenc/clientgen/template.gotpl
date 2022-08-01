@@ -130,15 +130,36 @@
                 }
 
                 { {{/* New block to prevent var names conflicts */}}
-                    res := Ξc.conn.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, vars, headers)
+                    opres, out, closer, err := Ξc.conn.Subscription(ctх, "{{ $op.Name }}", {{ $op.Name|go }}Document, vars, headers)
 
                     ch := make(chan Message{{ $op.Name|go }})
 
                     go func() {
                         for {
-                            opres := res.Get()
+
+                            if err != nil {
+                                ch <- Message{{ $op.Name|go }} {
+                                    Error: err,
+                                }
+                            }
+
 
                             var msg Message{{ $op.Name|go }}
+                            if out != nil {
+                             b, ok := <-out
+                             if !ok {
+                             	break
+                             }
+
+                             opres = client.OperationResponse{}
+                             if err := json.Unmarshal(b, &opres); err != nil {
+                                 ch <- Message{{ $op.Name|go }} {
+                                    Error: err,
+                                }
+                             }
+                            }
+
+
                             if len(opres.Errors) > 0 {
                                 msg.Error = opres.Errors
                             }
@@ -153,15 +174,12 @@
                             ch <- msg
                         }
 
-                        if err := res.Err(); err != nil {
-                            ch <- Message{{ $op.Name|go }} {
-                                Error: err,
-                            }
-                        }
                         close(ch)
                     }()
 
-                    return ch, res.Close
+                    return ch, func() {
+                        closer()
+                    }
                 }
             }
         {{- else}}

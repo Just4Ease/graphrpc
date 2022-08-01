@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/borderlesshq/axon/v2"
 	"log"
 	"net/http"
@@ -43,6 +42,7 @@ type Client struct {
 	//RequestOptions   []HttpRequestOption
 	Headers             Header
 	applyMsgPackEncoder bool
+	streamer            axon.Streamer
 	extensions
 }
 
@@ -129,11 +129,17 @@ func NewClient(conn axon.EventStore, options ...Option) (*Client, error) {
 		panic("axon must not be nil. see github.com/borderlesshq/axon for more details on how to connect")
 	}
 
+	streamer, _ := conn.NewStreamer()
+	go func(streamer axon.Streamer) {
+		streamer.Run() // Holding...
+	}(streamer)
+
 	return &Client{
 		axonConn:            conn,
 		BaseURL:             opts.remoteServiceName + "." + opts.remoteGraphEntrypoint,
 		opts:                opts,
 		Headers:             opts.Headers,
+		streamer:            streamer,
 		applyMsgPackEncoder: opts.applyMsgpackEncoder,
 	}, nil
 }
@@ -167,22 +173,18 @@ func (c *Client) exec(ctx context.Context, operation Operation, operationName st
 	return *opres, err
 }
 
-func (c *Client) stream(req Request) Response {
-	if req.Extensions == nil {
-		req.Extensions = map[string]interface{}{}
+func (c *Client) stream(req Request) (OperationResponse, <-chan []byte, axon.Close, error) {
+	opres, out, closer, err := c.subscribe(req)
+
+	if err != nil {
+		return OperationResponse{}, nil, nil, err
 	}
 
-	res := c.RunAroundRequest(req, c.Request)
+	if out != nil {
+		return OperationResponse{}, out, closer, nil
+	}
 
-	go func() {
-		select {
-		case <-req.Context.Done():
-			res.Close()
-		case <-res.Done():
-		}
-	}()
-
-	return res
+	return *opres, nil, nil, err
 }
 
 // Query runs a query
@@ -199,7 +201,7 @@ func (c *Client) Mutation(ctx context.Context, operationName string, query strin
 
 // Subscription starts a GQL subscription
 // operationName is optional
-func (c *Client) Subscription(ctx context.Context, operationName string, query string, variables map[string]interface{}, header Header) Response {
+func (c *Client) Subscription(ctx context.Context, operationName string, query string, variables map[string]interface{}, header Header) (OperationResponse, <-chan []byte, axon.Close, error) {
 	return c.stream(Request{
 		Context:       ctx,
 		Operation:     Subscription,

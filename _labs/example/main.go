@@ -10,6 +10,7 @@ import (
 	"github.com/borderlesshq/graphrpc/client"
 	userService "github.com/borderlesshq/graphrpc/services/users"
 	"log"
+	"time"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 	//	log.Fatal(err)
 	//}
 
-	v, cancel := s.WatchUserStatus(context.Background(), "01g690x5geqp1aev2mtsj5mme3")
+	v, cancel := s.WatchUserStatus(context.Background(), "01g690x5geqp1aev2mtsj5mme3", nil)
 	defer cancel()
 
 	for {
@@ -41,6 +42,7 @@ func main() {
 		}
 
 		fmt.Println(out.Data.WatchUserStatus.String())
+		time.Sleep(time.Second * 5)
 	}
 }
 

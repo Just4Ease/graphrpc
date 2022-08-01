@@ -163,6 +163,7 @@ func NewServer(axon axon.EventStore, h *handler.Server, options ...Option) *Serv
 }
 
 func (s *Server) Serve() error {
+	go s.streamer.Run() // Start running the streamer.
 	if s.opts.preRunHook != nil {
 		if err := s.opts.preRunHook(); err != nil {
 			return errors.Wrap(err, "failed to execute preRunHook")
@@ -199,6 +200,8 @@ func (s *Server) Serve() error {
 	}
 
 	go s.mountGraphQueryAndMutationsSubscriber()
+	go s.mountGraphSubscriptionsSubscriber()
+
 	return s.mountGraphHTTPServer()
 }
 
