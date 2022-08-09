@@ -10,7 +10,6 @@ import (
 	"github.com/borderlesshq/graphrpc/client"
 	userService "github.com/borderlesshq/graphrpc/services/users"
 	"log"
-	"time"
 )
 
 func main() {
@@ -20,7 +19,7 @@ func main() {
 		options.SetAddress("localhost:4222"),
 	)
 
-	s := userService.NewServiceClient(ax, client.SetRemoteServiceName("ms-users"), client.SetRemoteGraphQLPath("graphql"), client.ApplyMsgPackEncoder())
+	msUsers := userService.NewServiceClient(ax, client.SetRemoteServiceName("ms-users"), client.SetRemoteGraphQLPath("graphql"), client.ApplyMsgPackEncoder())
 
 	//v, err := s.ListVendors(context.Background(), nil)
 	//if err != nil {
@@ -32,17 +31,16 @@ func main() {
 	//	log.Fatal(err)
 	//}
 
-	v, cancel := s.WatchUserStatus(context.Background(), "01g690x5geqp1aev2mtsj5mme3", nil)
+	stream, cancel := msUsers.WatchUserStatus(context.Background(), "01g690x5geqp1aev2mtsj5mme3", nil)
 	defer cancel()
 
 	for {
-		out := <-v
-		if out.Error != nil {
-			log.Fatalln(out.Error)
+		response := <-stream
+		if response.Error != nil {
+			log.Fatalln(response.Error)
 		}
 
-		fmt.Println(out.Data.WatchUserStatus.String())
-		time.Sleep(time.Second * 5)
+		fmt.Println(response.Data.WatchUserStatus.String())
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/borderlesshq/graphrpc/libs/99designs/gqlgen/plugin/modelgen"
 	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/clientgen"
 	"github.com/borderlesshq/graphrpc/libs/infiotinc/gqlgenc/config"
+	"github.com/borderlesshq/graphrpc/utils"
 	"github.com/gookit/color"
 	"os"
 	"path"
@@ -236,9 +237,10 @@ func (c *Clients) Generate() {
 			os.Exit(4)
 		}
 
-		//model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
-		//generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
-		//utils.FixFieldAlignment(model)
+		model := path.Clean(fmt.Sprintf("%s/%s/types.go", c.generateToDirectory, g.PackagePath))
+		generated := path.Clean(fmt.Sprintf("%s/%s/generated.go", c.generateToDirectory, g.PackagePath))
+		utils.FixFieldAlignment(model)
+		utils.FixFieldAlignment(generated)
 		color.Green.Printf("✅  Generated client: %s 🚀\n", g.RemoteServiceName)
 	}
 }

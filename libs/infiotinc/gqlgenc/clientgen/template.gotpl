@@ -2,6 +2,7 @@
 	{{ reserveImport "context" }}
 	{{ reserveImport "fmt" }}
 	{{ reserveImport "log" }}
+	{{ reserveImport "encoding/json" }}
 
 
 	{{ reserveImport "github.com/borderlesshq/graphrpc" }}
