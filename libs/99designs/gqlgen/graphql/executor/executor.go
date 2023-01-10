@@ -172,8 +172,10 @@ func (e *Executor) parseQuery(ctx context.Context, stats *graphql.Stats, query s
 
 	doc, err := parser.ParseQuery(&ast.Source{Input: query})
 	if err != nil {
-		errcode.Set(err, errcode.ParseFailed)
-		return nil, gqlerror.List{err}
+		// convert err to gqlerror.Error type
+		gqlErr := gqlerror.Errorf(err.Error())
+		errcode.Set(gqlErr, errcode.ParseFailed)
+		return nil, gqlerror.List{gqlErr}
 	}
 	stats.Parsing.End = graphql.Now()
 

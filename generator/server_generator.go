@@ -70,6 +70,6 @@ func GenerateGraphRPCServer(fileName string) {
 		os.Exit(4)
 		return
 	}
-	
+
 	utils.FixFieldAlignment(cfg.Model.Dir())
 }

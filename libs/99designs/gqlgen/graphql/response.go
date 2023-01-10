@@ -14,7 +14,7 @@ import (
 type Response struct {
 	Errors     gqlerror.List          `json:"errors,omitempty" msgpack:"errors,omitempty"`
 	Extensions map[string]interface{} `json:"extensions,omitempty" msgpack:"extensions,omitempty"`
-	Data       utils.RawMessage        `json:"data" msgpack:"data"`
+	Data       utils.RawMessage       `json:"data" msgpack:"data"`
 }
 
 func ErrorResponse(ctx context.Context, messages string, args ...interface{}) *Response {
